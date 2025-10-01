@@ -1,0 +1,3 @@
+rootProject.name = 'multi-api-project'
+include 'multi-research1-api'
+include 'multi-research2-api'

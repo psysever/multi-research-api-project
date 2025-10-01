@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.CouponRepository">
+  <!-- g5_shop_default 그누보드에서 설정한 옵션 쿼리 -->
+  <select id="selectShopDefault" resultType="com.petnuri.petnuriappapi.domain.model.ShopDefault">
+    SELECT de_member_reg_coupon_term, <!-- 신규회원 쿠폰 유효 기간 -->
+    de_member_reg_coupon_price, <!-- 신규회원 쿠폰 할인 금액-->
+    de_member_reg_coupon_use, <!-- 신규회원 쿠폰발행 사용 -->
+    de_member_reg_coupon_minimum <!-- 신규회원 주문최소금액 -->
+    FROM g5_shop_default
+    LIMIT 1
+  </select>
+
+  <!-- 회원가입시 쿠폰 CP ID 반복문 중복 체크 -->
+  <select id="countCouponById" parameterType="java.lang.String" resultType="java.lang.Integer">
+    SELECT COUNT(*)
+    FROM g5_shop_coupon
+    WHERE cp_id = #{cpId}
+  </select>
+
+  <!-- 회원가입시 쿠폰 생성 -->
+  <insert id="createCoupon"
+    parameterType="com.petnuri.petnuriappapi.domain.request.coupon.CouponReq">
+    INSERT INTO g5_shop_coupon
+    (cp_id, cp_subject, cp_method, cp_target, mb_id, cp_start, cp_end, cp_type, cp_price, cp_trunc,
+     cp_minimum, cp_maximum, cp_datetime, od_id)
+    VALUES (#{cpId}, #{cpSubject}, #{cpMethod}, #{cpTarget}, #{mbId}, #{cpStart}, #{cpEnd},
+            #{cpType}, #{cpPrice}, #{cpTrunc}, #{cpMinimum}, #{cpMaximum}, #{cpDatetime}, #{odId});
+  </insert>
+
+  <insert id="createNonMemberCoupon" parameterType="map">
+    INSERT INTO g5_shop_coupon (
+      cp_id,
+      cp_subject,
+      cp_method,
+      cp_target,
+      mb_id,
+      cz_id,
+      cp_start,
+      cp_end,
+      cp_price,
+      cp_type,
+      cp_trunc,
+      cp_minimum,
+      cp_maximum,
+      od_id,
+      cp_datetime
+    )
+    SELECT
+      cp_id,
+      cp_subject,
+      cp_method,
+      cp_target,
+      #{mbId},
+      0,
+      cp_start,
+      cp_end,
+      cp_price,
+      cp_type,
+      cp_trunc,
+      cp_minimum,
+      cp_maximum,
+      0,
+      CURRENT_TIMESTAMP
+    FROM pet_non_member_coupon
+    WHERE del_fl = 0 AND use_fl = 0 AND cp_id = #{cpId};
+  </insert>
+
+  <update id="updateNonMemberUseCoupon" parameterType="map">
+    UPDATE pet_non_member_coupon SET use_fl = 1 WHERE cp_id = #{cpId};
+  </update>
+  <select id="findUseAbleNonMemberCoupon" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.PetNonMemberCoupon">
+    SELECT cp_id, cp_subject, use_fl
+    FROM pet_non_member_coupon
+    WHERE del_fl = 0 AND cp_id LIKE CONCAT('%', #{searchKeyword}, '%')
+    LIMIT 1;
+  </select>
+</mapper>

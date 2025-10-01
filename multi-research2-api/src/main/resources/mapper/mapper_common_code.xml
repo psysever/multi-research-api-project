@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.CommonCodeRepository">
+  <select id="findCommonCd"
+    parameterType="com.petnuri.petnuriappapi.domain.request.common_code.CommonCdReq"
+    resultType="com.petnuri.petnuriappapi.domain.model.CommonCode">
+    <!-- 반려동물 등록 공통 코드 P.18 -->
+    SELECT
+    SQL_CALC_FOUND_ROWS
+    code_cd,
+    code_nm
+    FROM pet_common_code
+    WHERE del_fl = 0
+    AND code = #{commonCodeType}
+    <if test="searchKeyword != null">
+      AND (
+      code_nm LIKE CONCAT('%', #{searchKeyword}, '%')
+      )
+    </if>
+    ORDER BY
+    common_id
+    ASC
+    LIMIT #{pageNo}, #{pageSize};
+  </select>
+  <!-- 코드 전 수 카운팅 -->
+  <select id="findCommonCdCnt" resultType="int">
+    SELECT FOUND_ROWS() AS total_cnt;
+  </select>
+  <select id="findCommonCodeList" parameterType="java.lang.String" resultType="com.petnuri.petnuriappapi.domain.model.CommonCode">
+    SELECT
+      code_cd,
+      code_nm
+    FROM pet_common_code
+    WHERE del_fl = 0
+    AND code = #{commonCodeType}
+  </select>
+</mapper>

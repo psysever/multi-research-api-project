@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PetMsgDeviceInfoRepository">
+
+  <!-- 디바이스 정보 쿼리-->
+  <select id="findOneDevice" parameterType="java.lang.String"
+    resultType="com.petnuri.petnuriappapi.domain.model.DeviceInfo">
+    SELECT device_id,
+           device_type,
+           device_token,
+           mb_id,
+           last_login_ymd
+    FROM pet_device_info
+    WHERE mb_id = #{mbId}
+  </select>
+
+  <!-- 디바이스 정보 쿼리-->
+  <select id="findAllDevice"
+    resultType="com.petnuri.petnuriappapi.domain.model.DeviceInfo">
+    SELECT device_id,
+           device_type,
+           device_token,
+           mb_id,
+           last_login_ymd
+    FROM pet_device_info
+  </select>
+
+  <!-- 디바이스 정보 생성-->
+  <insert id="createDeviceInfo"
+    parameterType="java.lang.String">
+    INSERT INTO pet_device_info(device_type, device_token, mb_id, last_login_ymd)
+    VALUES (#{deviceType}, #{firebaseToken}, #{mbId}, CURRENT_TIMESTAMP)
+  </insert>
+
+  <!-- 디바이스 토큰 업데이트-->
+  <update id="updateFcmToken"
+    parameterType="java.lang.String">
+    UPDATE pet_device_info
+    SET device_type  = #{deviceType},
+        device_token = #{firebaseToken}
+    WHERE mb_id = #{mbId}
+  </update>
+
+  <!-- 디바이스 토큰 업데이트-->
+  <update id="updateLastLogin"
+    parameterType="java.lang.String">
+    UPDATE pet_device_info
+    SET last_login_ymd = CURRENT_TIMESTAMP
+    WHERE mb_id = #{mbId}
+  </update>
+
+  <!-- 디바이스 정보 및 푸시메세지 데이터 생성-->
+  <insert id="creDevicePushMsg"
+    parameterType="com.petnuri.petnuriappapi.domain.request.push_message.CreDevicePushMsgReq">
+    INSERT INTO pet_push_message(device_id, push_type, message, redirect_uri, send_fl)
+    VALUES (#{deviceId}, #{pushType}, #{message}, #{redirectUri}, #{sendFl})
+  </insert>
+
+</mapper>

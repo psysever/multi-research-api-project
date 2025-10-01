@@ -1,0 +1,814 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.ShopMyPageRepository">
+
+ <!-- 마이페이지 > 주문조회 상세 -->
+    <select id="findOrderDetail" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.shop_my_page.ShopMpOrderDetailRes">
+        SELECT
+            gso.od_id,gso.od_time,gso.od_b_name,gso.od_b_tel,CONCAT('(', gso.od_b_zip1, gso.od_b_zip2, ') ', gso.od_b_addr1, ', ', gso.od_b_addr2, ' ', gso.od_b_addr3) AS od_address,gso.od_memo,gso.od_settle_case,gso.od_shop_memo,gso.od_invoice,gso.od_bank_account,gso.od_deposit_name,gso.od_app_no,gso.od_cart_price,
+            (gso.od_send_cost + gso.od_send_cost2) AS total_od_send_cost,
+            gso.od_send_cost,gso.od_send_cost2,
+            gso.od_cart_coupon,gso.od_receipt_point,gso.od_receipt_price,gso.od_misu,gso.od_send_coupon,
+            (SELECT SUM(gsc.ct_point * gsc.ct_qty) FROM g5_shop_cart gsc WHERE mb_id = gso.mb_id AND od_id = gso.od_id) AS total_expect_save_point,
+        (
+            SELECT SUM((si.it_cust_price - si.it_price) * sc.ct_qty)
+            FROM g5_shop_cart sc
+            INNER JOIN g5_shop_item si ON sc.it_id = si.it_id
+            WHERE sc.io_type = 0 AND sc.od_id = gso.od_id
+        ) AS total_discount_price,
+        gso.od_cancel_price, gso.od_status, gso.od_b_zip1, gso.od_b_zip2,gso.od_b_addr1,gso.od_b_addr2,gso.od_b_addr3,gso.od_addr_jibeon,
+        (
+            SELECT COALESCE(SUM(CASE WHEN sc.io_type = 0 THEN (si.it_cust_price + sc.io_price)  * sc.ct_qty ELSE io_price * sc.ct_qty END), 0)
+            FROM g5_shop_cart sc
+            INNER JOIN g5_shop_item si ON sc.it_id = si.it_id
+            WHERE sc.od_id = gso.od_id
+        ) AS total_original_price,
+        pcc.code_nm AS od_delivery_company,
+        gso.od_delivery_company AS delivery_company_code,
+        gso.od_coupon,
+        gso.subscribe_amount,
+        gso.subscribe_count,
+        0 AS total_refund_price,
+        (SELECT ct_status FROM g5_shop_cart WHERE od_id = gso.od_id LIMIT 1) AS ct_status,
+        gso.od_completion_date
+        FROM g5_shop_order gso
+        LEFT JOIN pet_common_code pcc ON gso.od_delivery_company = pcc.code_cd
+        WHERE gso.od_id = #{odId} AND gso.mb_id = #{mbId};
+    </select>
+
+     <!-- 마이페이지 > 주문조회 상세 카트 리스트 -->
+     <select id="findCartList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.shop_my_page.ShopMpOrderInfoRes">
+        SELECT
+            gso.od_id,gso.od_time,gsc.ct_id,gsc.it_name,gsc.it_id, gso.od_cart_count,gsc.ct_price,CASE WHEN gsc.ct_status = '반품' OR gsc.ct_status = '반품접수' OR gsc.ct_status = '반품완료' OR gsc.ct_status = '반품정산완료' THEN gsc.ct_status ELSE gso.od_status END AS od_status,
+            gsc.pet_id,gsc.ct_option, gsc.ct_qty, CASE WHEN gsi.it_img1 != '' THEN gsi.it_img1 ELSE NULL END AS product_img_url, gsc.pet_history_id, gsc.urine_check_history_id,   IFNULL((SELECT io_price FROM g5_shop_item_option WHERE io_id = gsc.io_id LIMIT 1), 0) AS io_price,
+            IFNULL((SELECT io_type FROM g5_shop_item_option WHERE io_id = gsc.io_id LIMIT 1), 0) AS io_type,'택배배송' AS od_delivery_method,
+            CASE
+              WHEN gsi.it_point_type = 1
+              THEN COALESCE(ROUND((gsi.it_price * (gsi.it_point / 100) / 10) * 10), 0)
+              ELSE 0
+            END AS expect_save_point,
+            CASE
+                 WHEN (
+                     SELECT COUNT(*)
+                     FROM g5_shop_item_use
+                     WHERE it_id = gsc.it_id AND od_id = gsc.od_id AND gsc.ct_status = '완료' AND del_fl = 0
+                 ) > 0 THEN 1
+                 ELSE 0
+             END AS review_fl,
+             CASE
+                 WHEN (
+                     SELECT COUNT(*)
+                     FROM g5_shop_item_use
+                     WHERE it_id = gsc.it_id AND od_id = gsc.od_id  AND STR_TO_DATE(SUBSTRING_INDEX(SUBSTRING_INDEX(gsc.ct_history, '|', -2), '|', 1), '%Y-%m-%d %H:%i:%s')
+                  <![CDATA[>=]]> DATE_SUB(CURDATE(), INTERVAL 15 DAY) AND gsc.ct_status = '완료' AND del_fl = 0
+                 ) > 0 THEN 1
+                 ELSE 0
+             END AS review_del_fl,
+            gsc.ct_status,
+            gso.od_completion_date,
+            gsc.refund_invoice,
+            gsc.refund_company,
+            gso.subscribe_amount,
+            gso.subscribe_count
+        FROM g5_shop_order gso
+        INNER JOIN g5_shop_cart gsc
+        ON gso.od_id = gsc.od_id
+        INNER JOIN g5_shop_item gsi
+        ON gsc.it_id = gsi.it_id
+        WHERE gso.od_id = #{odId} AND gso.mb_id = #{mbId};
+    </select>
+
+     <select id="findOrderRefundList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.shop_my_page.ShopMpOrderRefundDetailRes">
+        SELECT
+            gso.od_id,gso.od_time,gso.od_b_name,gso.od_b_tel,CONCAT('(', gso.od_b_zip1, gso.od_b_zip2, ') ', gso.od_b_addr1, ', ', gso.od_b_addr2, ' ', gso.od_b_addr3) AS od_address,gso.od_memo,gso.od_settle_case,gso.od_shop_memo,gso.od_invoice,gso.od_bank_account,gso.od_deposit_name,gso.od_app_no,gso.od_cart_price,
+            (gso.od_send_cost + gso.od_send_cost2) AS total_od_send_cost,
+            gso.od_send_cost,gso.od_send_cost2
+           ,gso.od_cart_coupon,gso.od_receipt_point,gso.od_receipt_price,gso.od_misu,gso.od_send_coupon,
+            (gsc.ct_point * gsc.ct_qty) AS total_expect_save_point,
+            (
+                SELECT COALESCE(SUM(si.it_cust_price), 0) - COALESCE(SUM(si.it_price), 0)
+                FROM g5_shop_cart sc
+                INNER JOIN g5_shop_item si ON sc.it_id = si.it_id
+                WHERE sc.ct_id = gsc.ct_id
+            ) AS total_discount_price,
+            gso.od_cancel_price, gso.od_status, gso.od_b_zip1, gso.od_b_zip2,gso.od_b_addr1,gso.od_b_addr2,gso.od_b_addr3,gso.od_addr_jibeon,
+            (
+                gso.od_cart_price +
+                (
+                    SELECT COALESCE(SUM(si.it_cust_price), 0) - COALESCE(SUM(si.it_price), 0)
+                    FROM g5_shop_cart sc
+                    INNER JOIN g5_shop_item si ON sc.it_id = si.it_id
+                    WHERE sc.ct_id = gsc.ct_id
+                )
+            ) AS total_original_price,
+            pcc.code_nm AS od_delivery_company,
+            gso.od_delivery_company AS delivery_company_code,
+            gso.od_coupon,
+            COALESCE((SELECT
+                 (subGsc.ct_price * subGsc.ct_qty)
+             FROM g5_shop_order gso
+             INNER JOIN g5_shop_cart subGsc
+             ON gso.od_id = subGsc.od_id
+             WHERE subGsc.ct_id = gsc.ct_id
+             GROUP BY gso.od_receipt_point)
+             , 0) AS total_refund_price,
+            gso.subscribe_amount,
+            gso.subscribe_count,
+            gso.od_completion_date,
+            gso.refund_bank,
+            gso.refund_deposit,
+            gso.refund_bank_account
+        FROM g5_shop_order gso
+        INNER JOIN g5_shop_cart gsc
+        ON gso.od_id = gsc.od_id
+        LEFT JOIN pet_common_code pcc ON gso.od_delivery_company = pcc.code_cd
+        WHERE gso.od_id = #{odId} AND gso.mb_id = #{mbId} AND gsc.ct_id = #{ctId};
+    </select>
+
+    <select id="findOrderRefundInfo" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.shop_my_page.ShopMpOrderRefundRes">
+        SELECT
+            id,
+            od_id,
+            ct_id,
+            price,
+            point,
+            product_back_status,
+            product_back_name,
+            product_back_cd,
+            product_trouble_cd,
+            withdraw_date,
+            withdraw_request_cd,
+            withdraw_request_etc,
+            phone,
+            tel,
+            zip1,
+            zip2,
+            addr1,
+            addr2,
+            addr3,
+            create_ymd
+        FROM
+            pet_product_back
+        WHERE
+            od_id = #{odId}
+            AND ct_id = #{ctId}
+    </select>
+
+     <select id="findCartRefundProductList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.shop_my_page.ShopMpOrderInfoRes">
+        SELECT
+            gso.od_id,gso.od_time,gsc.ct_id,gsc.it_name,gsc.it_id, gso.od_cart_count,gsc.ct_price,CASE WHEN gsc.ct_status = '반품' OR gsc.ct_status = '반품접수' OR gsc.ct_status = '반품완료' OR gsc.ct_status = '반품정산완료' THEN gsc.ct_status ELSE gso.od_status END AS od_status,
+            gsc.pet_id,gsc.ct_option, gsc.ct_qty, CASE WHEN gsi.it_img1 != '' THEN gsi.it_img1 ELSE NULL END AS product_img_url, gsc.pet_history_id, gsc.urine_check_history_id,   IFNULL((SELECT io_price FROM g5_shop_item_option WHERE io_id = gsc.io_id LIMIT 1), 0) AS io_price,
+            IFNULL((SELECT io_type FROM g5_shop_item_option WHERE io_id = gsc.io_id LIMIT 1), 0) AS io_type,'택배배송' AS od_delivery_method,
+            CASE
+              WHEN gsi.it_point_type = 1
+              THEN COALESCE(ROUND((gsi.it_price * (gsi.it_point / 100) / 10) * 10), 0)
+              ELSE 0
+            END AS expect_save_point,
+            CASE
+                 WHEN (
+                     SELECT COUNT(*)
+                     FROM g5_shop_item_use
+                     WHERE it_id = gsc.it_id AND od_id = gsc.od_id AND gsc.ct_status = '완료' AND del_fl = 0
+                 ) > 0 THEN 1
+                 ELSE 0
+             END AS review_fl,
+             CASE
+                 WHEN (
+                     SELECT COUNT(*)
+                     FROM g5_shop_item_use
+                     WHERE it_id = gsc.it_id AND od_id = gsc.od_id  AND STR_TO_DATE(SUBSTRING_INDEX(SUBSTRING_INDEX(gsc.ct_history, '|', -2), '|', 1), '%Y-%m-%d %H:%i:%s')
+                  <![CDATA[>=]]> DATE_SUB(CURDATE(), INTERVAL 15 DAY) AND gsc.ct_status = '완료' AND del_fl = 0
+                 ) > 0 THEN 1
+                 ELSE 0
+             END AS review_del_fl,
+            gsc.ct_status,
+            gsc.refund_invoice,
+            gsc.refund_company
+        FROM g5_shop_order gso
+        INNER JOIN g5_shop_cart gsc
+        ON gso.od_id = gsc.od_id
+        INNER JOIN g5_shop_item gsi
+        ON gsc.it_id = gsi.it_id
+        WHERE gso.od_id = #{odId} AND gso.mb_id = #{mbId} AND gsc.ct_id = #{ctId};
+    </select>
+
+
+
+
+     <!-- 마이페이지 > 쿠폰 > 포인트 소멸은 이번 달 소멸 예정인 것만 보여준다. -->
+    <select id="findPointList" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMpPointListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPagePoint">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            ROW_NUMBER() OVER (ORDER BY gsc.po_datetime DESC) AS row_num,
+            gsc.po_id,gsc.po_datetime,gsc.po_content,
+            CASE WHEN gsc.po_point <![CDATA[>]]> 0 THEN gsc.po_point ELSE 0 END AS save_point,
+            CASE WHEN gsc.po_point <![CDATA[<]]> 0 THEN ABS(gsc.po_point) ELSE 0 END AS use_point,
+            gsc.po_expired,gsc.po_expire_date, CASE WHEN gsc.po_rel_table = '@delivery' THEN SUBSTRING_INDEX(gsc.po_rel_action, ',', 1) ELSE NULL END AS od_id,
+            pph.type,pph.admin_fl
+        FROM g5_point gsc
+        LEFT JOIN pet_point_history pph ON pph.g5_point_id = gsc.po_id
+        WHERE gsc.mb_id = #{mbId}
+        <if test="pointReqType.name() == 'SAVE'">
+            AND gsc.po_point <![CDATA[>]]> 0
+            AND gsc.po_datetime <![CDATA[>=]]> DATE_ADD(NOW(), INTERVAL -3 MONTH)
+        </if>
+        <if test="pointReqType.name() == 'EXPIRED'">
+            AND DATE_FORMAT(gsc.po_expire_date, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+            AND gsc.po_expired = 0
+        </if>
+        <if test="startDate != null and endDate != null">
+            AND DATE_FORMAT(gsc.po_datetime, '%Y-%m') BETWEEN #{startDate} AND #{endDate}
+        </if>
+        LIMIT #{pageNo}, #{pageSize}
+    </select>
+
+     <!-- 마이페이지 > 포인트 -->
+    <select id="findPointListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+    <!-- 마이페이지 > 적립 예정 포인트 -->
+    <select id="findExpectedPoint" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMpPointListReq" resultType="java.lang.Integer">
+        SELECT
+            IFNULL(SUM(point_point), 0) AS total_point
+        FROM (
+            SELECT
+                SUM(gsc.ct_point * gsc.ct_qty) AS point_point
+            FROM g5_shop_cart gsc
+            JOIN g5_shop_order gso ON gsc.od_id = gso.od_id
+            WHERE gso.mb_id = #{mbId}
+              AND gso.od_status IN ('주문', '입금', '준비', '배송')
+
+            UNION ALL
+
+            SELECT
+                SUM(ROUND(CAST(gsi.it_price AS DECIMAL(20,4)) * (CAST(gsi.it_2 AS DECIMAL(5,2)) / 100) / 10 * 10)) AS point_point
+            FROM g5_shop_cart gsc
+            JOIN g5_shop_order gso ON gsc.od_id = gso.od_id
+            JOIN g5_shop_item gsi ON gsc.it_id = gsi.it_id
+            WHERE gso.mb_id = #{mbId}
+            AND gso.od_status IN ('완료')
+            AND gsi.it_2 IS NOT NULL
+            AND gsi.it_2 != 0
+            AND gsc.it_id NOT IN (SELECT it_id FROM g5_shop_item_use WHERE mb_id = gsc.mb_id AND del_fl = 0 GROUP BY it_id)
+        ) AS sub
+    </select>
+
+       <!-- 마이페이지 > 적립된 포인트 -->
+     <select id="findHavePoint" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMpPointListReq" resultType="java.lang.Integer">
+     SELECT IFNULL(mb_point, 0) AS mb_point
+        FROM g5_member
+        WHERE mb_id = #{mbId}
+        AND (mb_leave_date IS NULL OR mb_leave_date = '');
+    </select>
+
+
+
+    <!-- 마이페이지 > 쿠폰 > 포인트 소멸은 이번 달 소멸 예정인 것만 보여준다. -->
+    <select id="findExpiredPoint" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMpPointListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPagePoint">
+            SELECT
+                 po_id, po_datetime, po_content, po_point AS savePoint, po_expired, po_expire_date
+          FROM g5_point gsc
+          WHERE mb_id = #{mbId}
+            AND po_expired = 0 AND po_expire_date != '9999-12-31'
+          ORDER BY po_expire_date ASC limit 1
+    </select>
+
+
+    <!-- 마이페이지 > 쿠폰 > 받은 쿠폰 -->
+    <select id="findMpReciveCpList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPageCoupon">
+            SELECT
+                SQL_CALC_FOUND_ROWS
+                 ROW_NUMBER() OVER (ORDER BY gsc.cp_no DESC) AS row_num,
+                 gsc.cp_id, gsc.cp_subject, gsc.cp_method, gsc.cp_target, gsc.cp_start, gsc.cp_end, gsc.cp_type, gsc.cp_price, gsc.cp_minimum, gsc.cz_id, gsi.it_name
+          FROM g5_shop_coupon gsc
+          LEFT JOIN g5_shop_item gsi ON gsi.it_id = gsc.cp_target
+          WHERE gsc.mb_id IN ( #{mbId}, '전체회원' )
+                  AND gsc.cp_start <![CDATA[<=]]> CURDATE()
+                  AND gsc.cp_end <![CDATA[>=]]> CURDATE()
+                  AND not EXISTS (
+                  SELECT 1 FROM g5_shop_coupon_log gscl WHERE gscl.cp_id = gsc.cp_id
+                 )
+          LIMIT #{pageNo}, #{pageSize}
+
+    </select>
+
+      <!-- 마이페이지 > 쿠폰 > 받은 쿠폰 -->
+    <select id="findMpReciveCpListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+     <!-- 마이페이지 > 쿠폰 > 쿠폰 받기 -->
+    <select id="findMpNeedCpList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopCouponZone">
+         SELECT
+              SQL_CALC_FOUND_ROWS
+                 ROW_NUMBER() OVER (ORDER BY cz_id DESC) AS row_num,
+                 gsc.cz_id, gsc.cz_subject, gsc.cz_period, gsc.cp_method, gsc.cp_target, gsc.cz_start, gsc.cz_end, gsc.cp_type, gsc.cp_price, gsc.cp_trunc, gsc.cp_minimum, gsc.cp_maximum, gsi.it_name
+              FROM g5_shop_coupon_zone gsc
+              LEFT JOIN g5_shop_item gsi ON gsi.it_id = gsc.cp_target
+                WHERE gsc.cz_id NOT IN (
+                              SELECT gscz.cz_id from g5_shop_coupon_zone gscz
+                              JOIN g5_shop_coupon gso ON gscz.cz_id = gso.cz_id WHERE gso.mb_id = #{mbId})
+                              AND cz_type = '0' AND cz_start <![CDATA[<=]]> CURDATE()
+                  AND gsc.cz_end <![CDATA[>=]]> CURDATE()
+        LIMIT #{pageNo}, #{pageSize}
+    </select>
+
+   <!-- 마이페이지 > 쿠폰 > 쿠폰 받기 카운트 -->
+    <select id="findMpNeedCpListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+   <!-- 마이페이지 > 쿠폰 > 쿠폰 존 쿼리 -->
+    <select id="findMpCouponZone" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopCouponZone">
+         SELECT
+             cz_id, cz_subject, cz_period, cp_method, cp_target, cz_start, cz_end, cp_type, cp_price, cp_trunc, cp_minimum, cp_maximum
+         FROM g5_shop_coupon_zone
+         WHERE cz_id = #{czId}
+    </select>
+
+    <!-- 마이페이지 > 쿠폰 > 쿠폰 받기 클릭 -->
+    <insert id="createMpCoupon" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreMpCouponDto">
+        INSERT INTO g5_shop_coupon(cp_id, cp_subject, cp_method, cp_target, mb_id, cz_id, cp_start, cp_end, cp_type, cp_price, cp_trunc, cp_minimum, cp_maximum, cp_datetime, od_id)
+        SELECT
+            #{cpId}, cz_subject, cp_method, cp_target, #{mbId}, cz_id, CURRENT_DATE, #{czEnd}, cp_type, cp_price, cp_trunc, cp_minimum, cp_maximum, CURRENT_TIMESTAMP, 0
+        FROM g5_shop_coupon_zone
+        WHERE cz_id = #{czId} AND cz_id NOT IN (SELECT cz_id FROM g5_shop_coupon WHERE mb_id = #{mbId});
+    </insert>
+
+    <!-- 마이페이지 > 쿠폰 > 쿠폰 존 쿼리 -->
+    <update id="updateMpCouponZone" parameterType="map">
+         UPDATE g5_shop_coupon_zone
+             SET cz_download = cz_download + 1
+         WHERE cz_id = #{czId}
+    </update>
+
+      <!-- 리뷰 리스트 -->
+    <select id="findMpReviewList" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMyPageReviewListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopReViewList">
+            SELECT SQL_CALC_FOUND_ROWS
+                 ROW_NUMBER() OVER (ORDER BY gsc.ct_select_time DESC) AS row_num,
+                 gsc.it_id,
+                 CASE WHEN gsc.io_id != '' THEN GROUP_CONCAT(gsc.ct_option, ' ', (CONCAT(gsc.ct_qty, '개'))) ELSE gsc.ct_option END AS ct_option,
+                 gsc.od_id,
+                 gsc.mb_id,
+                 gsc.it_name,
+                 gsc.ct_qty,
+                 gsc.io_id,
+                 gsc.pet_id,
+                 gsc.pet_history_id,
+                 gsc.urine_check_history_id,
+                 CASE
+                      WHEN gsi.it_2 IS NOT NULL AND gsi.it_2 != ''
+                      THEN FLOOR((gsi.it_price * ((gsi.it_2) / 100) / 10 ) * 10)
+                      ELSE 0
+                 END AS po_point,
+                 STR_TO_DATE(SUBSTRING_INDEX(SUBSTRING_INDEX(gsc.ct_history, '|', -2), '|', 1), '%Y-%m-%d') AS ct_history,
+                 15 - DATEDIFF(CURDATE(), STR_TO_DATE(SUBSTRING_INDEX(SUBSTRING_INDEX(gsc.ct_history, '|', -2), '|', 1), '%Y-%m-%d %H:%i:%s')) AS days_left,
+                 gsi.it_img1,
+             CASE
+                 WHEN (
+                     SELECT COUNT(*)
+                     FROM g5_shop_item_use
+                     WHERE it_id = gsc.it_id AND od_id = gsc.od_id AND del_fl = 0
+                 ) > 0 THEN 1
+                 ELSE 0
+             END AS review_fl
+        FROM g5_shop_order gso
+        INNER JOIN g5_shop_cart gsc
+        ON gso.od_id = gsc.od_id
+        INNER JOIN g5_shop_item gsi ON gsi.it_id = gsc.it_id
+        WHERE (
+              SELECT COUNT(*)
+              FROM g5_shop_item_use
+              WHERE it_id = gsc.it_id AND od_id = gsc.od_id
+          ) = 0
+        AND gso.od_completion_date <![CDATA[>=]]> DATE_SUB(CURDATE(), INTERVAL 15 DAY)
+        AND gsc.ct_status = '완료'
+        AND gsc.mb_id = #{mbId}
+        <if test="searchKeyword != null">
+        AND gsc.it_name = #{searchKeyword}
+        </if>
+        GROUP BY od_id, it_id
+        LIMIT #{pageNo}, #{pageSize}
+    </select>
+    <!-- 리뷰 리스트 카운트 -->
+    <select id="findMpReviewListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+
+    <!-- 마이페이지 > 리뷰 생성 -->
+     <insert id="createMpReview" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreShopMyPageReviewReq" useGeneratedKeys="true" keyProperty="isId">
+            INSERT INTO g5_shop_item_use (
+                it_id,
+                mb_id,
+                od_id,
+                pet_id,
+                is_name,
+                is_score,
+                is_subject,
+                is_content,
+                is_time,
+                is_ip,
+                is_confirm,
+               is_reply_content,
+                file_1,
+                file_2,
+                file_3,
+                file_4,
+                file_5,
+                file_6,
+                file_7,
+                file_8
+            )
+            VALUES(
+                #{itId},
+                #{mbId},
+                #{odId},
+                <choose>
+                      <when test="petId != null">
+                          #{petId}
+                      </when>
+                      <otherwise>
+                          null
+                      </otherwise>
+                </choose>,
+                #{isName},
+                #{isScore},
+                #{isSubject},
+                #{isContent},
+                CURRENT_TIMESTAMP,
+                #{isIp},
+                1,
+                '',
+                <choose>
+                      <when test="file1 != null and file1 != ''">
+                          #{file1}
+                      </when>
+                      <otherwise>
+                          null
+                      </otherwise>
+                  </choose>,
+                <choose>
+                    <when test="file2 != null and file2 != ''">
+                        #{file2}
+                    </when>
+                    <otherwise>
+                        null
+                    </otherwise>
+                </choose>,
+                <choose>
+                      <when test="file3 != null and file3 != ''">
+                          #{file3}
+                      </when>
+                      <otherwise>
+                          null
+                      </otherwise>
+                  </choose>,
+                <choose>
+                    <when test="file4 != null and file4 != ''">
+                        #{file4}
+                    </when>
+                    <otherwise>
+                        null
+                    </otherwise>
+                </choose>,
+                <choose>
+                      <when test="file5 != null and file5 != ''">
+                          #{file5}
+                      </when>
+                      <otherwise>
+                          null
+                      </otherwise>
+                  </choose>,
+                <choose>
+                    <when test="file6 != null and file6 != ''">
+                        #{file6}
+                    </when>
+                    <otherwise>
+                        null
+                    </otherwise>
+                </choose>,
+                <choose>
+                      <when test="file7 != null and file7 != ''">
+                          #{file7}
+                      </when>
+                      <otherwise>
+                         null
+                      </otherwise>
+                  </choose>,
+                <choose>
+                    <when test="file8 != null and file8 != ''">
+                        #{file8}
+                    </when>
+                    <otherwise>
+                        null
+                    </otherwise>
+                </choose> )
+    </insert>
+
+    <update id="updateMpReviewFile" parameterType="map">
+        UPDATE g5_shop_item_use
+        SET
+            file_1 = NULL,
+            file_2 = NULL,
+            file_3 = NULL,
+            file_4 = NULL,
+            file_5 = NULL,
+            file_6 = NULL,
+            file_7 = NULL,
+            file_8 = NULL
+        WHERE mb_id = #{mbId} AND is_id = #{isId};
+    </update>
+
+    <update id="updateMpReview" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.UpdShopMyPageReviewReq">
+        UPDATE g5_shop_item_use
+        SET
+            it_id = #{itId},
+            mb_id = #{mbId},
+            od_id = #{odId},
+            pet_id = #{petId},
+            is_name = #{isName},
+            is_score = #{isScore},
+            is_subject = #{isSubject},
+            is_content = #{isContent},
+            is_time = CURRENT_TIMESTAMP,
+            is_ip = #{isIp},
+            file_1 = #{file1},
+            file_2 = #{file2},
+            file_3 = #{file3},
+            file_4 = #{file4},
+            file_5 = #{file5},
+            file_6 = #{file6},
+            file_7 = #{file7},
+            file_8 = #{file8}
+        WHERE mb_id = #{mbId} AND is_id = #{isId};
+    </update>
+
+    <delete id="deleteMpReview" parameterType="java.lang.Integer">
+        DELETE FROM g5_shop_item_use WHERE is_id = #{isId};
+    </delete>
+
+    <!--  마이페이지 > 리뷰 생성  후 포인트 적립-->
+    <insert id="createMpReviewPoint" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreMpReviewPointReq">
+        INSERT INTO g5_point (
+                    mb_id,
+                    po_datetime,
+                    po_content,
+                    po_point,
+                    po_use_point,
+                    po_expired,
+                    po_expire_date,
+                    po_mb_point,
+                    po_rel_table,
+                    po_rel_id,
+                    po_rel_action
+                )
+        SELECT
+            gsc.mb_id,
+            CURRENT_TIMESTAMP,
+            CONCAT('상품 ', gsc.it_id, ' (', #{isId}, ') 리뷰적립') AS po_content,
+            CASE
+                WHEN gsi.it_2 IS NOT NULL AND gsi.it_2 != ''
+                    THEN FLOOR((gsi.it_price * ((gsi.it_2) / 100) / 10 ) * 10)
+                ELSE 0
+            END AS po_point,
+            0,
+            0,
+            DATE_ADD(CURRENT_DATE, INTERVAL (SELECT cf_point_term - 1 FROM g5_config LIMIT 1) DAY),
+            #{poMbPoint},
+            '@review',
+            'admin',
+            CONCAT(#{isId}, ',', gsc.it_id) AS po_rel_action
+        FROM g5_shop_cart gsc
+        INNER JOIN g5_shop_item gsi ON gsi.it_id = gsc.it_id
+        INNER JOIN g5_member gm ON gsc.mb_id = gm.mb_id
+        WHERE gsc.od_id = #{odId}
+        AND gsc.mb_id = #{mbId}
+        GROUP BY gsc.od_id, gsc.it_id;
+    </insert>
+    <!-- 마이페이지 > 리뷰 생성  후 포인트 멤버 포인트 쿼리-->
+    <select id="findG5Config">
+    SELECT cf_point_term
+    FROM g5_config
+    </select>
+
+    <!--  마이페이지 > 리뷰 생성  후 포인트 멤버 포인트 쿼리-->
+    <select id="findMpPointWithMeb" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreMpReviewPointReq" resultType="java.lang.Integer">
+              SELECT
+               (
+                 gm.mb_point +
+                        CASE
+                            WHEN gsi.it_2 IS NOT NULL AND gsi.it_2 != ''
+                                  THEN FLOOR((gsi.it_price * ((gsi.it_2) / 100) / 10 ) * 10)
+                            ELSE 0
+                        END
+                 ) AS po_mb_point
+          FROM g5_shop_cart gsc
+          INNER JOIN g5_shop_item gsi ON gsi.it_id = gsc.it_id
+          INNER JOIN g5_member gm ON gsc.mb_id = gm.mb_id
+          WHERE gsc.od_id = #{odId} GROUP BY od_id;
+    </select>
+
+    <!--  마이페이지 > 리뷰 생성  후 포인트 멤버 포인트 업데이트-->
+    <update id="updateMpMbRvPoint" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreMpReviewPointReq">
+         UPDATE g5_member
+             SET mb_point = #{poMbPoint}
+            WHERE mb_id = #{mbId};
+    </update>
+
+  <!--  마이페이지 > 상품 Q&A 카테고리 리스트 -->
+     <select id="findMpQaTypeList" parameterType="map" resultType="java.lang.String">
+            SELECT
+                 qa_category
+          FROM g5_qa_config ORDER BY qa_category DESC limit 1
+    </select>
+
+
+  <!--  마이페이지 > 상품 Q&A 리스트 -->
+    <select id="findMpItemQaList" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMyPageItemQaListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPageItemQa">
+            SELECT
+                 SQL_CALC_FOUND_ROWS
+                 ROW_NUMBER() OVER (ORDER BY gsiq.iq_time DESC) AS row_num,
+                 gsiq.iq_id,
+                 gsiq.it_id,
+                 gsiq.mb_id,
+                 gsiq.iq_secret,
+                 gsiq.iq_name,
+                 gsiq.iq_password,
+                 gsiq.iq_subject,
+                   <![CDATA[
+                  REGEXP_REPLACE(gsiq.iq_question, '<[^>]*>', '') AS iq_question,
+                  REGEXP_REPLACE(gsiq.iq_answer, '<[^>]*>', '') AS iq_answer
+                  ]]>,
+                 gsiq.iq_time,
+                 gsiq.iq_ip,
+                 (SELECT mb_nick FROM g5_member WHERE mb_id = gsiq.mb_id LIMIT 1) AS iq_nick
+          FROM g5_shop_item_qa gsiq
+          WHERE gsiq.mb_id = #{mbId}
+          LIMIT #{pageNo}, #{pageSize}
+    </select>
+
+    <select id="findMpItemQaListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+
+ <!--  마이페이지 > 상품 Q&A 생성 -->
+    <insert id="createMpItemQa" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreShopMyPageItemQaReq">
+    INSERT INTO g5_shop_item_qa(it_id, mb_id, iq_secret, iq_name, iq_password, iq_subject, iq_question, iq_answer, iq_time, iq_ip)
+    VALUES (#{itId}, #{mbId}, #{iqSecret}, #{iqName}, '', #{iqSubject}, #{iqQuestion}, '', CURRENT_TIMESTAMP, #{iqIp})
+    </insert>
+
+
+    <!--  마이페이지 > 상품 Q&A 수정 -->
+    <update id="updateMpItemQa" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.UpdShopMyPageItemQaReq">
+    UPDATE g5_shop_item_qa
+    SET iq_secret = #{iqSecret},
+        iq_name = #{iqName},
+        iq_subject = #{iqSubject},
+        iq_question = #{iqQuestion}
+    WHERE iq_id = #{iqId}
+    </update>
+
+   <!--  마이페이지 > 상품 Q&A 삭제 -->
+   <delete id="deleteMpItemQa" parameterType="map">
+      DELETE FROM g5_shop_item_qa
+      WHERE iq_id = #{iqId}
+   </delete>
+
+
+
+  <!--  마이페이지 > 1:1 문의 -->
+    <select id="findMpQaList" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMyPageQaListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPageQaList">
+            SELECT SQL_CALC_FOUND_ROWS
+                 ROW_NUMBER() OVER (ORDER BY qa_datetime DESC) AS row_num,
+                 qa_id,
+                 mb_id,
+                 qa_type,
+                 qa_category,
+                 qa_subject,
+                 qa_status,
+                 qa_datetime
+          FROM g5_qa_content
+          WHERE qa_parent = qa_id AND qa_related = qa_id AND mb_id = #{mbId}
+          <if test="searchKeyword != null">
+          AND  qa_subject = #{searchKeyword}
+          </if>
+           LIMIT #{pageNo}, #{pageSize}
+    </select>
+
+    <select id="findMpQaListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+
+  <!--  마이페이지 > 1:1 문의 상세 -->
+    <select id="findMpQaDetail" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPageQaContent">
+            SELECT
+                 qa_id,
+                 mb_id,
+                 qa_name,
+                 qa_type,
+                 qa_category,
+                 qa_subject,
+                 qa_content,
+                 qa_status,
+                 qa_file1 AS file_url,
+                 qa_source1 AS file_name,
+                 qa_datetime
+          FROM g5_qa_content
+          WHERE qa_id = #{qaId}
+    </select>
+
+
+  <!--  마이페이지 > 1:1 문의 답변 글 -->
+    <select id="findMpQaDtReplay" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPageQaContent">
+            SELECT
+                 qa_id,
+                 mb_id,
+                 qa_name,
+                 qa_type,
+                 qa_category,
+                 qa_subject,
+                 qa_content,
+                 qa_status,
+                 qa_file1,
+                 qa_datetime
+          FROM g5_qa_content
+          WHERE qa_id != #{qaId} AND qa_related = #{qaId}
+    </select>
+
+  <!--  마이페이지 > 1:1 문의 생성 -->
+     <insert id="createMpQa" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.CreShopMyPageQaReq" useGeneratedKeys="true" keyProperty="qaId">
+            INSERT INTO g5_qa_content (
+                mb_id,
+                qa_num,
+                qa_name,
+                qa_type,
+                qa_category,
+                qa_email_recv,
+                qa_sms_recv,
+                qa_html,
+                qa_subject,
+                qa_content,
+                qa_status,
+                qa_file1,
+                qa_source1,
+                qa_ip,
+                qa_datetime
+            )
+            SELECT
+                #{mbId},
+                IFNULL(MIN(qa_num), 0) - 1,
+                #{qaName},
+                0,
+                #{qaCategory},
+                0,
+                0,
+                0,
+                #{qaSubject},
+                #{qaContent},
+                0,
+                <choose>
+                      <when test="qaFile1 != null and qaFile1 != ''">
+                          #{qaFile1}
+                      </when>
+                      <otherwise>
+                          ''
+                      </otherwise>
+                  </choose>,
+                <choose>
+                    <when test="qaSource1 != null and qaSource1 != ''">
+                        #{qaSource1}
+                    </when>
+                    <otherwise>
+                        ''
+                    </otherwise>
+                </choose>,
+                #{qaIp},
+                CURRENT_TIMESTAMP
+            FROM g5_qa_content;
+    </insert>
+
+    <!--  마이페이지 > 1:1 생성 후 아래 컬럼 업데이트 -->
+    <update id="updateMpQaParentAndRelated" parameterType="int">
+      UPDATE g5_qa_content
+      SET qa_parent = #{qaId}, qa_related = #{qaId}
+      WHERE qa_id = #{qaId}
+    </update>
+
+    <select id="findMemberLevel" parameterType="java.lang.String" resultType="com.petnuri.petnuriappapi.domain.model.PetMemberLevel">
+        SELECT
+        vml.level, IFNULL(pmlr.level_type_nm, 'Lv.0') AS level_type_nm, vml.level_nm, vml.total_score AS total_score
+        FROM v_member_level vml
+        LEFT JOIN pet_member_level_role pmlr
+        ON vml.level = pmlr.level AND vml.del_fl = pmlr.del_fl
+        WHERE vml.del_fl = 0
+        <if test="mbId != null">
+            AND vml.mb_id = #{mbId}
+        </if>
+        ORDER BY vml.total_score DESC;
+    </select>
+
+</mapper>

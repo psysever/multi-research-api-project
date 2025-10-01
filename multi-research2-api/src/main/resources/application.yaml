@@ -1,0 +1,18 @@
+application:
+  version: v0.0.1
+  title: PETNURI
+
+server:
+  port: 8080
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.petnuri.petnuriuserapi
+  configuration:
+    map-underscore-to-camel-case: true
+
+spring:
+  profiles:
+    active: local
+
+

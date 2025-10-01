@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.UserRepository">
+  <!-- 회원 정보 로그인 P.26-->
+  <select id="authUser"
+    parameterType="map"
+    resultType="com.petnuri.petnuriappapi.domain.response.user.UserInfoRes">
+    SELECT m.mb_no,
+           m.mb_id,
+           m.mb_email,
+           m.mb_name,
+           m.mb_nick,
+           m.mb_nick_date,
+           m.mb_sex,
+           m.mb_birth,
+           m.mb_hp,
+           m.mb_today_login,
+           m.mb_sms,
+           m.mb_alarm_date,
+           m.mb_recommend,
+           m.mb_point,
+           IFNULL(m.mb_point, 0),
+           IFNULL(SUM(CASE WHEN sc.od_id = 0 AND sc.cp_end > CURRENT_DATE() THEN 1 ELSE 0 END),
+                  0) AS coupon_cnt,
+           msp.provider,
+           msp.identifier
+    FROM g5_member m
+           INNER JOIN g5_member_social_profiles msp
+                      ON m.mb_id = msp.mb_id
+           LEFT OUTER JOIN g5_shop_coupon sc
+                           ON sc.mb_id = m.mb_id
+    WHERE msp.identifier = #{identifier}
+      AND msp.provider = #{provider}
+
+  </select>
+
+  <!-- 회원가입  회원가입 및 회원 소셜 정보 생성 P.27 -->
+  <insert id="createUser"
+    parameterType="com.petnuri.petnuriappapi.domain.request.user.CreateUserReq"
+     useGeneratedKeys="true"
+     keyProperty="mbNo">
+    INSERT INTO g5_member(mb_id, mb_name, mb_nick, mb_email, mb_sex, mb_birth, mb_hp, mb_adult,
+                          mb_login_ip, mb_open, mb_ip, mb_mailling, mb_sms, mb_alarm_date, mb_ci,
+                          mb_recommend, mb_datetime)
+    VALUES (#{mbId}, #{mbName}, #{mbNick}, #{mbEmail}, #{mbSex}, #{mbBirth}, #{mbHp}, #{mbAdult},
+            #{mbLoginIp}, #{mbOpen}, #{mbLoginIp}, #{mbMailingSms}, #{mbMailingSms}, CURRENT_TIMESTAMP,
+            #{mbCi},#{mbRecommend}, CURRENT_TIMESTAMP);
+  </insert>
+  <insert id="createSocial"
+    parameterType="com.petnuri.petnuriappapi.domain.request.user.CreateUserReq">
+    INSERT INTO g5_member_social_profiles(mb_id, provider, identifier, displayname, mp_register_day)
+    VALUES (#{mbId}, #{provider}, #{identifier}, #{mbNick}, CURRENT_TIMESTAMP);
+  </insert>
+
+  <!-- 추천자 업데이트 -->
+   <update id="updateRecommended" parameterType="com.petnuri.petnuriappapi.domain.request.user.CreateUserReq">
+        UPDATE g5_member
+        SET recommended_mb_id = #{recommendedMbId}
+        WHERE mb_no = #{mbNo}
+    </update>
+  <!-- 추천인 코드가 있으면 3000원 지급 g5_point 테이블 데이터 생성 -->
+  <insert id="giveRecoPoint"
+    parameterType="com.petnuri.petnuriappapi.domain.request.user.GivePointReq"
+          useGeneratedKeys="true"
+     keyProperty="poId"
+  >
+            INSERT INTO g5_point (
+            mb_id,
+            po_datetime,
+            po_content,
+            po_point,
+            po_use_point,
+            po_expired,
+            po_expire_date,
+            po_mb_point,
+            po_rel_table,
+            po_rel_id,
+            po_rel_action
+        ) VALUES (
+            #{mbId},
+            CURRENT_TIMESTAMP,
+            #{poContent},
+            #{poPoint},
+            0,
+            0,
+            #{poExpireDate},
+            #{poMbPoint},
+            #{poRelTable},
+            #{mbId},
+            #{poRelAction}
+        );
+  </insert>
+  <!-- g5_point 데이터 생성 후 g5_member mb_point update -->
+  <update id="updateRecoPoint" parameterType="map">
+    UPDATE g5_member
+    SET mb_point = (mb_point + #{point})
+    WHERE mb_id = #{mbId};
+  </update>
+
+    <delete id="deletePoint" parameterType="map">
+        DELETE FROM g5_point WHERE po_id = #{poId};
+    </delete>
+
+    <delete id="deleteCoupon" parameterType="map">
+        DELETE FROM g5_shop_coupon_log WHERE mb_id = #{mbId} AND od_id = #{odId};
+    </delete>
+
+  <select id="findMbPoint" resultType="java.lang.Integer">
+    SELECT IFNULL(mb_point, 0)
+    FROM g5_member
+    WHERE mb_id = #{mbId}
+  </select>
+
+
+  <!-- 회원가입 본인인증 Ci 값으로 중복 체크 P.27-->
+  <select id="duplicateUser"
+    parameterType="java.lang.String"
+    resultType="com.petnuri.petnuriappapi.domain.response.user.UserInfoRes">
+    SELECT u.mb_no,
+           u.mb_id,
+           u.mb_email,
+           u.mb_name,
+           u.mb_nick,
+           u.mb_nick_date,
+           u.mb_email,
+           u.mb_sex,
+           u.mb_birth,
+           u.mb_hp,
+           u.mb_today_login,
+           u.mb_sms,
+           u.mb_ci,
+           u.mb_recommend,
+           u.mb_ci,
+           p.provider,
+           p.identifier
+    FROM g5_member u
+           INNER JOIN g5_member_social_profiles p ON u.mb_id = p.mb_id
+    WHERE u.mb_ci = #{mbCi}
+      AND u.mb_leave_date = ''
+    ORDER BY mb_datetime DESC LIMIT 1;
+  </select>
+
+  <!-- 회원가입 추천인 코드 회원 정보  P.27-->
+  <select id="findRecoUserInfo"
+    parameterType="java.lang.String"
+    resultType="com.petnuri.petnuriappapi.domain.response.user.UserInfoRes">
+    SELECT u.mb_no,
+           u.mb_id,
+           u.mb_email,
+           u.mb_name,
+           u.mb_nick,
+           u.mb_nick_date,
+           u.mb_email,
+           u.mb_sex,
+           u.mb_birth,
+           u.mb_hp,
+           u.mb_today_login,
+           u.mb_sms,
+           u.mb_alarm_date,
+           u.mb_ci,
+           u.mb_recommend,
+           u.mb_ci,
+           p.provider,
+           p.identifier
+    FROM g5_member u
+           JOIN g5_member_social_profiles p ON u.mb_id = p.mb_id
+    WHERE u.mb_recommend = #{mbRecommend}
+      AND u.mb_leave_date = ''
+  </select>
+
+  <!-- 회원가입 추천인 코드 생성 중복체크 P.27-->
+  <select id="findByCode" parameterType="java.lang.String" resultType="java.lang.Integer">
+    SELECT count(*)
+    FROM g5_member
+    WHERE mb_recommend = #{mbRecommend}
+
+  </select>
+
+  <!-- 회원 정보-->
+  <select id="findByUsername" parameterType="java.lang.String"
+    resultType="com.petnuri.petnuriappapi.domain.response.user.UserInfoRes">
+    SELECT u.mb_no,
+           u.mb_id,
+           u.mb_email,
+           u.mb_name,
+           u.mb_nick,
+           u.mb_nick_date,
+           u.mb_email,
+           u.mb_sex,
+           u.mb_birth,
+           u.mb_hp,
+           u.mb_today_login,
+           u.mb_datetime,
+           u.mb_sms,
+           u.mb_alarm_date,
+           u.mb_pet_point,
+           u.mb_recommend,
+           u.mb_ci,
+           u.mb_point,
+           IFNULL(SUM(CASE WHEN sc.od_id = 0 AND sc.cp_end > CURRENT_DATE() THEN 1 ELSE 0 END),
+                  0) AS coupon_cnt,
+           msp.provider,
+           msp.identifier,
+           bf.bf_fileurl  AS user_profile_url
+    FROM g5_member u
+    INNER JOIN g5_member_social_profiles msp
+    ON u.mb_id = msp.mb_id
+    LEFT OUTER JOIN g5_shop_coupon sc
+    ON sc.mb_id = u.mb_id
+    LEFT JOIN g5_board_file bf
+    ON u.mb_no = bf.wr_id AND bf.bo_table = 'user_profile'
+    WHERE msp.identifier = #{identifier} AND sc.cp_id NOT IN (SELECT cp_id FROM g5_shop_coupon_log WHERE mb_id = u.mb_id);
+  </select>
+
+
+  <!-- 회원 정보 수정 P.19 -->
+  <update id="updateUser"
+    parameterType="com.petnuri.petnuriappapi.domain.request.user.UpdateUserReq">
+    UPDATE g5_member
+    SET mb_name  = #{mbName},
+        mb_sex   = #{mbSex},
+        mb_birth = #{mbBirth},
+        mb_hp    = #{mbHp},
+        mb_nick  = #{mbNick},
+        mb_ci  = #{mbCi}
+    WHERE mb_id = #{mbId}
+  </update>
+
+  <!-- 닉네임 조회 가능 여부-->
+  <select id="vailUpdNickNm" parameterType="java.lang.String" resultType="java.lang.Integer">
+  SELECT COUNT(*)
+  FROM g5_member
+  WHERE mb_id = #{mbId}
+  AND (
+  mb_nick_date = '0000-00-00'
+  OR mb_nick_date  <![CDATA[<=]]>DATE_SUB(NOW(), INTERVAL 30 DAY)
+  );
+  </select>
+
+    <update id="updateNickName" parameterType="com.petnuri.petnuriappapi.domain.request.user.UpdateNickNameReq">
+    UPDATE g5_member
+    SET mb_nick = #{nickName},
+      mb_nick_date = CURRENT_TIMESTAMP
+    WHERE mb_id = #{mbId}
+    </update>
+
+
+
+    <select id="duplicateCheckNick" parameterType="java.lang.String" resultType="java.lang.Integer">
+    SELECT
+      COUNT(*)
+    FROM g5_member
+    WHERE mb_nick = #{nickName};
+    </select>
+
+    <!-- 회원 탈퇴 일자 및 소셜 정보 및 회원에 관한 모든 데이터 삭제 프로시졀 호출 P.19-->
+    <update id="deleteUserInfo" parameterType="java.lang.String">
+    CALL sp_member_withdrawal(#{mbId})
+    </update>
+
+
+    <!-- 회원탈퇴 시 배송중인 건 조회-->
+    <select id="findShipCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+    SELECT count(*)
+    FROM g5_shop_order
+    WHERE mb_id = #{mbId}
+    AND od_status NOT IN ('완료','취소완료','반품정산완료');
+    </select>
+
+
+    <!-- 알림 수신 토글 P.25-->
+    <update id="updateSettingTog"
+    parameterType="com.petnuri.petnuriappapi.domain.request.user.UpdSettingToggleReq">
+    UPDATE g5_member
+    SET mb_mailling   = #{mbMailingSms},
+    mb_sms        = #{mbMailingSms},
+    mb_alarm_date = #{mbAlarmDate}
+    WHERE mb_id = #{mbId}
+    AND mb_leave_date = ''
+    </update>
+
+    <select id="isDeviceToken" parameterType="java.lang.String">
+    SELECT
+      COUNT(*)
+    FROM pet_device_info
+    WHERE LENGTH(device_token) <![CDATA[>]]> 0 AND mb_id = #{mbId};
+    </select>
+    <update id="updateDeviceToken" parameterType="map">
+    UPDATE pet_device_info
+    SET device_token = #{deviceToken}
+    WHERE mb_id = #{mbId} AND device_token != #{deviceToken};
+    </update>
+
+    <select id="findPetPointHistory" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.user.UserPointRes">
+    SELECT
+        g5p.po_id, pph.mb_id,pph.point,g5p.po_expire_date,gso.od_receipt_price,
+        CASE WHEN (gso.od_receipt_price + gso.od_send_cost + gso.od_receipt_point + gso.od_coupon) - gso.od_cart_price = 0 AND gso.od_misu = 0 THEN 1 ELSE 0 END AS cancel_finish_enabled
+    FROM pet_point_history pph
+    INNER JOIN g5_point g5p ON pph.g5_point_id = g5p.po_id
+    INNER JOIN g5_shop_order gso ON pph.mb_id = gso.mb_id AND pph.od_id = gso.od_id
+    WHERE pph.od_id = #{odId} AND pph.mb_id = #{mbId} AND g5p.po_expire_date <![CDATA[>=]]> CURDATE() AND pph.type = 1
+    </select>
+    <insert id="createPetMemberAttendance" parameterType="map">
+        INSERT INTO pet_member_attendance (
+            mb_id,
+            attendance_date
+        )
+        SELECT
+            #{mbId},
+            DATE_FORMAT(CURRENT_TIMESTAMP, '%Y-%m-%d')
+        FROM dual
+        WHERE NOT EXISTS(
+            SELECT 1 FROM pet_member_attendance
+            WHERE mb_id = #{mbId} AND attendance_date = CURRENT_DATE()
+        );
+    </insert>
+</mapper>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property name="LOG_PATTERN"
+    value="%boldMagenta(%d{MM-dd HH:mm:ss}) [%boldYellow(%-5level)] %cyan(%logger{5}.%M) - %msg %n"/>
+  <property name="CLOUD_WATCH_PATTERN" value="[%thread] [%date] [%level] [%file:%line] - %msg %n"/>
+  <include resource="appender/console_appender.xml"/>
+  <include resource="appender/file_error_appender.xml"/>
+  <include resource="appender/file_warn_appender.xml"/>
+  <include resource="appender/sql/sql_appender.xml"/>
+  <!--    <include resource="appender/aws/cloud_watch_appender.xml"/>-->
+  <springProfile name="local">
+    <root level="WARN">
+      <appender-ref ref="consoleAppender"/>
+      <appender-ref ref="errorAppender"/>
+      <appender-ref ref="warnAppender"/>
+    </root>
+  </springProfile>
+  <springProfile name="dev">
+    <root level="WARN">
+      <appender-ref ref="consoleAppender"/>
+      <appender-ref ref="errorAppender"/>
+      <appender-ref ref="warnAppender"/>
+    </root>
+  </springProfile>
+  <springProfile name="stg">
+    <root level="WARN">
+      <appender-ref ref="consoleAppender"/>
+      <appender-ref ref="errorAppender"/>
+      <appender-ref ref="warnAppender"/>
+    </root>
+  </springProfile>
+  <springProfile name="prod">
+    <root level="WARN">
+      <appender-ref ref="consoleAppender"/>
+      <appender-ref ref="errorAppender"/>
+      <appender-ref ref="warnAppender"/>
+    </root>
+  </springProfile>
+  <logger name="jdbc.sqlonly" level="INFO" appender-ref="consoleAppender"/>
+  <logger name="jdbc.resultsettable" level="INFO" appender-ref="consoleAppender"/>
+</configuration>

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PlaceInfoRepository">
+    <select id="findPlaceList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_place.PlaceSearchListReq" resultType="com.petnuri.petnuriappapi.domain.model.KakaoKeywordSearch">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pp.id AS place_id,
+            pp.partnership_fl,
+            pp.name AS place_name,
+            pp.category_cd AS category_cd,
+            pp.category_group_name,
+            pp.category_name AS category_name,
+            pp.status,
+            pp.tel AS phone,
+            pp.full_address AS address_name,
+            pp.road_address AS road_address_name,
+            pp.x_position AS x,
+            pp.y_position AS y,
+            pp.place_url,
+            (SELECT bf_fileurl FROM g5_board_file gbf INNER JOIN pet_place_file_mapping ppfm ON gbf.bo_table = 'pet_place' AND gbf.wr_id = ppfm.pfm_id WHERE ppfm.place_id = pp.id) AS image_url,
+            pp.opening_hours,
+            IFNULL((SELECT CAST(AVG(point) AS signed integer) FROM pet_review WHERE place_id = pp.id), 0) AS point,
+            IFNULL((SELECT COUNT(*) FROM pet_review WHERE del_fl = 0 AND place_id = pp.id), 0) AS review_count
+        FROM pet_place pp
+        WHERE pp.del_fl = 0
+        <if test="categoryCd != null">
+            AND pp.category_cd = #{categoryCd}
+        </if>
+        <if test="searchKeyword != null">
+            AND ((pp.name LIKE CONCAT('%', #{searchKeyword}, '%')) OR (pp.road_address LIKE CONCAT('%', #{searchKeyword}, '%')))
+        </if>
+        <choose>
+            <when test="latitude != null and longitude != null">
+                ORDER BY pp.partnership_fl DESC, ST_Distance_Sphere(
+                POINT(#{longitude}, #{latitude}),
+                POINT(CAST(pp.x_position AS DECIMAL(15,12)), CAST(pp.y_position AS DECIMAL(15,12)))
+                )
+            </when>
+        <otherwise>
+            ORDER BY pp.partnership_fl DESC, pp.sido_code
+        </otherwise>
+        </choose>
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPlaceDetail" parameterType="java.lang.Integer" resultType="com.petnuri.petnuriappapi.domain.model.PlaceInfo">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pp.name AS place_name,
+            pp.partnership_fl,
+            pp.category_cd AS category_cd,
+            pp.category_group_name,
+            pp.category_name AS category_name,
+            pp.status,
+            pp.tel AS phone,
+            pp.full_address AS address_name,
+            pp.road_address AS road_address_name,
+            pp.x_position AS x,
+            pp.y_position AS y,
+            pp.place_url,
+            pp.description,
+            (SELECT bf_fileurl FROM g5_board_file gbf INNER JOIN pet_place_file_mapping ppfm ON gbf.bo_table = 'pet_place' AND gbf.wr_id = ppfm.pfm_id WHERE ppfm.place_id = pp.id LIMIT 1) AS image_url,
+            pp.opening_hours,
+            IFNULL((SELECT CAST(AVG(point) AS signed integer) FROM pet_review WHERE place_id = pp.id), 0) AS point
+        FROM pet_place pp
+        WHERE pp.del_fl = 0
+        AND pp.id = #{placeId}
+    </select>
+    <!-- 관리자 토탈 카운트 -->
+    <select id="findPlaceListTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <select id="findPlaceListTest">
+        SELECT
+            id, name, SUBSTRING_INDEX(full_address, ' ', 2) AS full_address,x_position, y_position
+        FROM pet_place;
+    </select>
+    <delete id="deletePlaceInfo" parameterType="java.lang.Integer">
+        DELETE FROM pet_place WHERE id = #{id}
+    </delete>
+    <update id="updatePlaceInfo" parameterType="map">
+        UPDATE pet_place
+        SET
+            x_position = #{xPosition},
+            y_position = #{yPosition}
+        WHERE id = #{placeId};
+    </update>
+    <insert id="createPlaceInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_place.PlaceSearchReq">
+        INSERT INTO pet_place (
+            name,
+            category_cd,
+            category_group_name,
+            category_name,
+            status,
+            tel,
+            full_address,
+            road_address,
+            x_position,
+            y_position,
+            place_url,
+            thumbnail_url
+        ) VALUES (
+                     #{name},
+                     #{categoryCd},
+                     #{categoryGroupName},
+                     #{categoryName},
+                     #{status},
+                     #{tel},
+                     #{fullAddress},
+                     #{roadAddress},
+                     #{xPosition},
+                     #{yPosition},
+                     #{placeUrl},
+                     #{thumbnailUrl}
+                 )
+    </insert>
+</mapper>

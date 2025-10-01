@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PetMarketRepository">
+    <select id="findPetMarketList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetMarket">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pm.mk_id,
+            pm.place_name,
+            pm.subject,
+            pm.contents,
+            pm.tag_nm,
+            pm.mk_type,
+            pm.mk_status,
+            pm.mk_price,
+            pm.address,
+            pm.longitude,
+            pm.latitude,
+            CASE WHEN (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id AND mb_id = #{mbId}) > 0 THEN 1 ELSE 0 END AS like_fl,
+            (SELECT bf_fileurl FROM g5_board_file gbf INNER JOIN pet_market_file_mapping pmfm ON gbf.bo_table = 'pet_market' AND gbf.wr_id = pmfm.mk_fm_id  WHERE pmfm.mk_id = pm.mk_id LIMIT 1) AS image_url,
+            pm.create_ymd,
+            (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id) AS like_cnt
+        FROM pet_market pm
+        INNER JOIN g5_member gm
+        ON pm.mb_id = gm.mb_id
+        WHERE pm.del_fl = 0
+        AND fn_block_member(#{mbId},pm.mb_id) <![CDATA[<]]> 1
+        <if test="searchKeyword != null">
+            AND ((pm.subject LIKE CONCAT('%', #{searchKeyword}, '%')) OR (pm.contents LIKE CONCAT('%', #{searchKeyword}, '%')))
+        </if>
+        <if test="mkType != null">
+            AND pm.mkType = #{mkType}
+        </if>
+        <choose>
+            <when test="latitude != null and longitude != null">
+                ORDER BY ST_Distance_Sphere(
+                POINT(#{longitude}, #{latitude}),
+                POINT(CAST(pm.longitude AS DECIMAL(15,12)), CAST(pm.latitude AS DECIMAL(15,12)))
+                ), pm.mk_status
+            </when>
+            <otherwise>
+                ORDER BY pm.create_ymd, pm.mk_status DESC
+            </otherwise>
+        </choose>
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetMarketTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <select id="findPetMarketDetail" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.pet_market.PetMarketDetailRes">
+        SELECT
+            pm.mk_id,
+            pm.mb_id,
+            pm.place_name,
+            pm.subject,
+            pm.contents,
+            pm.tag_nm,
+            pm.mk_type,
+            pm.mk_status,
+            pm.mk_price,
+            pm.address,
+            pm.longitude,
+            pm.latitude,
+            CASE WHEN (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id AND mb_id = #{mbId}) > 0 THEN 1 ELSE 0 END AS like_fl,
+            JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                            'mkFmId', g5bf.mk_fm_id,
+                            'imageUrl', g5bf.bf_fileurl,
+                            'fileName', g5bf.bf_source
+                    )
+            ) AS image_list,
+            pm.create_ymd,
+            (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id) AS like_cnt,
+            (SELECT gbf.bf_fileurl FROM g5_board_file gbf WHERE gbf.bo_table = 'user_profile' AND gm.mb_id = pm.mb_id AND gm.mb_no = gbf.wr_id) AS profile_url,
+            gm.mb_nick, vml.level, vml.level_nm,
+            (SELECT COUNT(*) FROM pet_member_manage_history WHERE use_type = 1  AND mb_id = pm.mb_id AND target_mb_id = #{mbId}) AS isReportFl
+        FROM pet_market pm
+        INNER JOIN g5_member gm
+        ON pm.mb_id = gm.mb_id
+        LEFT JOIN v_member_level vml
+        ON pm.mb_id = vml.mb_id
+        LEFT JOIN (
+        SELECT
+            pmfm.mk_id, pmfm.mk_fm_id, g5bf.bf_fileurl, g5bf.bf_source
+        FROM pet_market_file_mapping pmfm
+        LEFT JOIN g5_board_file g5bf
+        ON pmfm.mk_fm_id = g5bf.wr_id AND g5bf.bo_table = 'pet_market'
+        ORDER BY g5bf.wr_id
+        ) g5bf ON pm.mk_id = g5bf.mk_id
+        WHERE pm.del_fl = 0 AND fn_block_member(#{mbId},pm.mb_id) <![CDATA[<]]> 1 AND pm.mk_id = #{mkId};
+    </select>
+    <select id="findPetMarketPurchaseList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketPurchaseListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetMarketPurchase">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            ROW_NUMBER() OVER (ORDER BY purchase_status, create_ymd) AS row_num,
+            purchase_id,
+            mk_id,
+            purchase_mb_id,
+            contents,
+            purchase_status,
+            CASE WHEN purchase_status = 1 THEN '구매 확정' ELSE '구매 요청중' END AS purchase_status_nm
+        FROM pet_market_purchase
+        WHERE del_fl = 0 AND mk_id = #{mkId}
+        ORDER BY purchase_status, create_ymd DESC
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetMarketPurchaseTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <update id="updatePetMarketPurchase" parameterType="map">
+        UPDATE pet_market_purchase SET purchase_status = 1 WHERE purchase_id = #{purchaseId};
+    </update>
+    <select id="findPetMarketPurchaseMbId" parameterType="map">
+        SELECT purchase_mb_id FROM pet_market_purchase WHERE purchase_id = #{purchaseId};
+    </select>
+    <update id="updatePetMarketMkStatus" parameterType="map">
+        UPDATE pet_market SET mk_status = 1 WHERE mk_id = #{mkId};
+    </update>
+    <insert id="createPetMarket" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketReq" useGeneratedKeys="true" keyProperty="mkId">
+        INSERT INTO pet_market (
+            mb_id,
+            place_name,
+            subject,
+            contents,
+            tag_nm,
+            mk_type,
+            mk_status,
+            mk_price,
+            address,
+            longitude,
+            latitude
+        ) VALUES (
+             #{mbId},
+             #{placeName},
+             #{subject},
+             #{contents},
+             #{tagNm},
+             #{mkType},
+             #{mkStatus},
+             #{mkPrice},
+             #{address},
+             #{longitude},
+             #{latitude}
+         );
+    </insert>
+
+    <select id="findMarketMappingList" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        SELECT
+            mk_fm_id
+        FROM pet_market_file_mapping
+        WHERE mk_id = #{mkId};
+    </select>
+    <delete id="deleteMarketMapping" parameterType="java.lang.Integer">
+        DELETE FROM pet_market_file_mapping WHERE mk_fm_id = #{mkFmId};
+    </delete>
+    <insert id="createMarketFileMapping" parameterType="map" useGeneratedKeys="true" keyProperty="mkFmId">
+        INSERT INTO pet_market_file_mapping (
+            mk_id,
+            mb_id
+        ) VALUES (
+            #{mkId},
+            #{mbId}
+        );
+    </insert>
+    <update id="updateMarket" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketReq">
+        UPDATE pet_market
+        SET
+            place_name = #{placeName},
+            subject = #{subject},
+            contents = #{contents},
+            tag_nm = #{tagNm},
+            mk_type = #{mkType},
+            mk_status = #{mkStatus},
+            mk_price = #{mkPrice},
+            address = #{address},
+            longitude = #{longitude},
+            latitude = #{latitude}
+        WHERE mk_id = #{mkId};
+    </update>
+    <insert id="createPetMarketPurchase" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketPurchaseReq">
+        INSERT INTO pet_market_purchase (
+            mk_id,
+            sender_mb_id,
+            receiver_mb_id,
+            contents,
+            purchase_status
+        ) VALUES (
+            #{mkId},
+            #{senderMbId},
+            #{receiverMbId},
+            #{contents},
+            #{purchaseStatus}
+        );
+    </insert>
+    <select id="findPetMyMarketList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMyMarketListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetMarket">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pm.mk_id,
+            pm.place_name,
+            pm.subject,
+            pm.contents,
+            pm.tag_nm,
+            pm.mk_type,
+            pm.mk_status,
+            pm.mk_price,
+            pm.address,
+            pm.longitude,
+            pm.latitude,
+            CASE WHEN (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id AND mb_id = #{mbId}) > 0 THEN 1 ELSE 0 END AS like_fl,
+            (SELECT bf_fileurl FROM g5_board_file gbf INNER JOIN pet_market_file_mapping pmfm ON gbf.bo_table = 'pet_market' AND gbf.wr_id = pmfm.mk_fm_id  WHERE pmfm.mk_id = pm.mk_id LIMIT 1) AS image_url,
+            pm.create_ymd,
+            (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id) AS like_cnt
+        FROM pet_market pm
+        WHERE pm.del_fl = 0
+        AND pm.mb_id = #{receiverMbId}
+        AND fn_block_member(#{mbId},pm.mb_id) <![CDATA[<]]> 1
+        <if test="mkId != null">
+            AND pm.mk_id NOT IN  (#{mkId})
+        </if>
+        <if test="mkStatus != null">
+            AND pm.mk_status = #{mkStatus}
+        </if>
+        ORDER BY pm.create_ymd DESC
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetMyMarketTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <insert id="createPetMarketLike" parameterType="map">
+        INSERT INTO pet_market_like_mapping (
+            mk_id,
+            mb_id
+        ) VALUES (
+            #{mkId},
+            #{mbId}
+        );
+    </insert>
+    <delete id="deletePetMarketLike" parameterType="map">
+        DELETE FROM pet_market_like_mapping WHERE mk_id = #{mkId} AND mb_id = #{mbId};
+    </delete>
+    <select id="findPetMarketMySales" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMarketMySalesListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetMarketMySales">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pm.mk_id,
+            pm.place_name,
+            pm.subject,
+            pm.contents,
+            pm.tag_nm,
+            pm.mk_type,
+            pm.mk_status,
+            pm.mk_price,
+            pm.address,
+            pm.longitude,
+            pm.latitude,
+            CASE WHEN (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id AND mb_id = #{mbId}) > 0 THEN 1 ELSE 0 END AS like_fl,
+            (SELECT bf_fileurl FROM g5_board_file gbf INNER JOIN pet_market_file_mapping pmfm ON gbf.bo_table = 'pet_market' AND gbf.wr_id = pmfm.mk_fm_id  WHERE pmfm.mk_id = pm.mk_id LIMIT 1) AS image_url,
+            pm.create_ymd,
+            (SELECT COUNT(*) FROM pet_market_like_mapping WHERE mk_id = pm.mk_id) AS like_cnt
+        FROM pet_market pm
+        INNER JOIN g5_member gm
+        ON pm.mb_id = gm.mb_id
+        LEFT JOIN pet_market_like_mapping pmlm
+        ON pmlm.mk_id = pm.mk_id AND pmlm.mb_id = #{mbId}
+        LEFT JOIN pet_market_purchase pmp ON pmp.mk_id = pm.mk_id
+        LEFT JOIN g5_board_file gbf
+        ON gbf.bo_table = 'user_profile' AND gm.mb_no = gbf.wr_id
+        WHERE pm.del_fl = 0
+        <if test="mkType == 'INTEREST'">
+            AND pmlm.mb_id = #{mbId}
+        </if>
+        <if test="mkType == 'BUY'">
+            AND pmp.sender_mb_id = #{mbId}
+        </if>
+        <if test="mkType == 'SELL'">
+            AND pm.mb_id = #{mbId}
+        </if>
+        <if test="mkStatus != null">
+            AND pm.mk_status = #{mkStatus}
+        </if>
+        ORDER BY pm.create_ymd DESC
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetMarketMySalesTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <insert id="createMemberBlockMapping" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.CreateMemberBlockReq" useGeneratedKeys="true" keyProperty="mbmId">
+        INSERT INTO pet_member_block_mapping (
+            mb_id,
+            block_mb_id
+        ) VALUES (
+            #{mbId},
+            #{blockMbId}
+        );
+    </insert>
+    <insert id="createMemberReportMapping" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.CreateMemberReportReq" useGeneratedKeys="true" keyProperty="mrmId">
+        INSERT INTO pet_member_report_mapping (
+            mb_id,
+            report_mb_id,
+            report_use_fl
+        ) VALUES (
+            #{mbId},
+            #{reportMbId},
+            #{readFl}
+        );
+    </insert>
+    <delete id="deleteMemberBlockMapping" parameterType="map">
+        DELETE FROM pet_member_block_mapping WHERE mb_id = #{mbId} AND mbm_id = #{mbmId};
+    </delete>
+    <delete id="deleteMemberReportMapping" parameterType="map">
+        DELETE FROM pet_member_report_mapping WHERE mb_id = #{mbId} AND mrm_id = #{mrmId};
+    </delete>
+    <delete id="deleteMemberManage" parameterType="map">
+        DELETE FROM pet_member_manage_history WHERE mb_id = #{mbId} AND use_mapping_id = #{mbmId};
+    </delete>
+    <insert id="createMemberManageHistory" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMemberManageHistoryReq">
+        INSERT INTO pet_member_manage_history (
+            use_type,
+            use_mapping_id,
+            mb_id,
+            target_mb_id,
+            read_fl,
+            subject,
+            contents
+        ) VALUES (
+            #{useType},
+            #{useMappingId},
+            #{mbId},
+            #{targetMbId},
+            #{readFl},
+            #{subject},
+            #{contents}
+        );
+    </insert>
+    <insert id="createMemberBlockReportHistory" parameterType="com.petnuri.petnuriappapi.domain.request.pet_market.PetMemberManageHistoryReq">
+        INSERT INTO pet_member_block_report_history (
+            crud_type,
+            use_type,
+            use_mapping_id,
+            mb_id,
+            target_mb_id,
+            read_fl,
+            subject,
+            contents,
+            create_id
+        ) VALUES (
+            #{crudType},
+            #{useType},
+            #{useMappingId},
+            #{mbId},
+            #{targetMbId},
+            #{readFl},
+            #{subject},
+            #{contents},
+            #{createId}
+        );
+    </insert>
+    <delete id="deleteMemberBlockReportHistory" parameterType="map">
+        INSERT INTO pet_member_block_report_history (
+            crud_type,
+            use_type,
+            use_mapping_id,
+            mb_id,
+            target_mb_id,
+            read_fl,
+            subject,
+            contents,
+            create_id
+        )
+        SELECT
+            'DELETED',
+            use_type,
+            use_mapping_id,
+            mb_id,
+            target_mb_id,
+            read_fl,
+            subject,
+            contents,
+            #{mbId}
+        FROM pet_member_manage_history
+        WHERE use_type = 2 AND use_mapping_id = #{useMappingId};
+    </delete>
+    <select id="findByMbNick" parameterType="java.lang.String">
+        SELECT
+            mb_nick
+        FROM g5_member
+        WHERE mb_id = #{mbId};
+    </select>
+    <select id="findPetMemberManageList" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.PetMemberManage">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            gm.mb_nick, vml.level, IFNULL(pmlr.level_type_nm, 'Lv.0') AS level_type_nm, vml.level_nm, pmmh.subject, pmmh.contents,
+            gbf.bf_fileurl AS user_profile_url, pmmh.use_mapping_id, pmmh.mb_id
+        FROM pet_member_manage_history pmmh
+        INNER JOIN g5_member gm
+        ON pmmh.target_mb_id = gm.mb_id
+        INNER JOIN v_member_level vml
+        ON gm.mb_id = vml.mb_id
+        LEFT JOIN pet_member_level_role pmlr
+        ON vml.level = pmlr.level AND vml.del_fl = pmlr.del_fl
+        LEFT JOIN g5_board_file gbf ON gbf.bo_table = 'user_profile' AND gm.mb_no = gbf.wr_id
+        WHERE pmmh.del_fl = 0
+        <if test="useType != null">
+            AND pmmh.use_type = #{useType}
+        </if>
+        AND pmmh.mb_id = #{mbId}
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetMemberManageTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+</mapper>

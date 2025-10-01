@@ -1,0 +1,15 @@
+<!-- AWS Appender 설정 -->
+<appender name="cloudWatchAppender" class="ca.pjer.logback.AwsLogsAppender">
+    <layout>
+        <pattern>${CLOUD_WATCH_PATTERN}</pattern>
+    </layout>
+    <logGroupName>?</logGroupName>
+    <logStreamUuidPrefix>?</logStreamUuidPrefix>
+    <logRegion>ap-northeast-2</logRegion>
+    <maxBatchLogEvents>50</maxBatchLogEvents>
+    <maxFlushTimeMillis>10</maxFlushTimeMillis>
+    <maxBlockTimeMillis>10</maxBlockTimeMillis>
+    <retentionTimeDays>0</retentionTimeDays>
+    <accessKeyId>?</accessKeyId>
+    <secretAccessKey>?</secretAccessKey>
+</appender>

@@ -1,0 +1,12 @@
+application:
+  version: v0.0.1
+  title: INFLINKER JPA V1
+
+server:
+  port: 8500
+
+spring:
+  profiles:
+    active: local
+
+

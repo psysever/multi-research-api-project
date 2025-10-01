@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PetWalkRepository">
+    <select id="findPetWalkList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.PetWalkListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetWalk">
+        WITH record_ranked AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (PARTITION BY wk_id ORDER BY create_ymd) AS rn_start,
+                ROW_NUMBER() OVER (PARTITION BY wk_id ORDER BY create_ymd DESC) AS rn_end
+            FROM pet_walk_record
+        ),
+        s_day AS (
+            SELECT wk_id, longitude, latitude, create_ymd FROM record_ranked WHERE rn_start = 1
+        ),
+        e_day AS (
+            SELECT wk_id, longitude, latitude, create_ymd FROM record_ranked WHERE rn_end = 1
+        ),
+        user_profile_file AS (
+            SELECT wr_id, bf_fileurl
+            FROM g5_board_file
+            WHERE bo_table = 'user_profile'
+        ),
+        ReplyData AS (
+            SELECT
+                pwr.wk_id,
+                JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                                'wkReplyId', pwr.wk_reply_id,
+                                'mbId', pwr.mb_id,
+                                'contents', pwr.contents,
+                                'subReplyList', COALESCE(sub.sub_reply_list, JSON_ARRAY()),
+                                'createYmd', DATE_FORMAT(pwr.create_ymd, '%Y-%m-%d %H:%i:%s'),
+                                'createId', pwr.create_id,
+                                'mbNick', gm.mb_nick,
+                                'userProfileUrl', upf.bf_fileurl
+                        )
+                ) AS reply_list
+            FROM pet_walk_reply pwr
+            JOIN g5_member gm ON pwr.mb_id = gm.mb_id
+            LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+            LEFT JOIN (
+                SELECT
+                    pwsr.wk_reply_id,
+                    JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                    'wkSuplyId', pwsr.wk_suply_id,
+                                    'mbId', pwsr.mb_id,
+                                    'contents', pwsr.contents,
+                                    'createYmd', DATE_FORMAT(pwsr.create_ymd, '%Y-%m-%d %H:%i:%s'),
+                                    'createId', pwsr.create_id,
+                                    'mbNick', gm.mb_nick,
+                                    'userProfileUrl', upf.bf_fileurl
+                            )
+                    ) AS sub_reply_list
+                FROM pet_walk_sub_reply pwsr
+                         JOIN g5_member gm ON pwsr.mb_id = gm.mb_id
+                         LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+                WHERE pwsr.del_fl = 0
+                GROUP BY pwsr.wk_reply_id
+            ) sub ON pwr.wk_reply_id = sub.wk_reply_id
+            WHERE pwr.del_fl = 0
+            GROUP BY pwr.wk_id
+        ),
+        imageData AS (
+            SELECT
+                pwfm.wk_id,
+                JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                                'wkFmapId', pwfm.wk_fmap_id,
+                                'imageUrl', bf.bf_fileurl,
+                                'fileName', bf.bf_source
+                        )
+                ) AS image_list
+            FROM pet_walk_file_mapping pwfm
+            LEFT JOIN g5_board_file bf ON pwfm.wk_fmap_id = bf.wr_id AND bf.bo_table = 'pet_walk'
+            GROUP BY pwfm.wk_id
+        ),
+        likeUserData AS (
+            SELECT
+                pwlm.wk_id,
+                JSON_ARRAYAGG(
+                        JSON_OBJECT('mbId', pwlm.mb_id)
+                ) AS like_user_list
+            FROM pet_walk_like_mapping pwlm
+            WHERE pwlm.del_fl = 0
+            GROUP BY pwlm.wk_id
+        )
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY pw.create_ymd DESC) AS row_num,
+            pw.wk_id,
+            pw.mb_id,
+            pw.contents,
+            EXISTS (
+                SELECT 1 FROM pet_walk_like_mapping
+                WHERE wk_id = pw.wk_id AND mb_id = #{likeMbId} AND del_fl = 0
+            ) AS is_liked,
+            lud.like_user_list,
+            pw.create_ymd,
+            pw.create_id,
+            rd.reply_list,
+            id.image_list,
+            gm.mb_nick,
+            upf.bf_fileurl AS user_profile_url,
+            DATE_FORMAT(pw.create_ymd, '%Y-%m-%d') AS walk_date,
+            s_day.create_ymd AS start_date,
+            e_day.create_ymd AS end_date,
+            ROUND(ST_Distance_Sphere(
+                          POINT(s_day.longitude, s_day.latitude),
+                          POINT(e_day.longitude, e_day.latitude)
+                  ) / 1000, 2) AS distance_km,
+            pw.water_ml,
+            pw.dung,
+            (SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+            'petId', pi.pet_id,
+            'petNm', pi.pet_nm,
+            'isDefault', pi.is_default,
+            'petFileUrl', bf.bf_fileurl
+            )
+            )
+            FROM pet_info pi
+            INNER JOIN g5_board_file bf ON pi.pet_id = bf.wr_id AND bf.bo_table = 'pet_info'
+            WHERE FIND_IN_SET(pi.pet_id, pw.pet_ids)) AS pet_list,
+            pw.wk_time, pw.wk_distance,
+            (SELECT COUNT(wklm_id)
+            FROM pet_walk_like_mapping
+            WHERE wk_id = pw.wk_id AND del_fl = 0) AS like_cnt,
+            boast_date
+        FROM pet_walk pw
+        JOIN g5_member gm ON pw.mb_id = gm.mb_id
+        LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+        LEFT JOIN s_day ON pw.wk_id = s_day.wk_id
+        LEFT JOIN e_day ON pw.wk_id = e_day.wk_id
+        LEFT JOIN ReplyData rd ON pw.wk_id = rd.wk_id
+        LEFT JOIN imageData id ON pw.wk_id = id.wk_id
+        LEFT JOIN likeUserData lud ON pw.wk_id = lud.wk_id
+        WHERE pw.del_fl = 0
+        <if test="mbId != null">
+            AND pw.mb_id = #{mbId}
+        </if>
+        <if test="searchDate != null">
+            AND DATE_FORMAT(pw.create_ymd, '%Y-%m-%d') = #{searchDate}
+        </if>
+        <if test="boastFl != null">
+            AND pw.boast_fl = #{boastFl}
+        </if>
+        AND pw.del_fl = 0
+        ORDER BY pw.create_ymd DESC
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="findPetWalkTotalCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <select id="findPetWalkDetail" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.PetWalk">
+        WITH record_ranked AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (PARTITION BY wk_id ORDER BY create_ymd) AS rn_start,
+                ROW_NUMBER() OVER (PARTITION BY wk_id ORDER BY create_ymd DESC) AS rn_end
+            FROM pet_walk_record
+        ),
+             s_day AS (
+                 SELECT wk_id, longitude, latitude, create_ymd FROM record_ranked WHERE rn_start = 1
+             ),
+             e_day AS (
+                 SELECT wk_id, longitude, latitude, create_ymd FROM record_ranked WHERE rn_end = 1
+             ),
+             user_profile_file AS (
+                 SELECT wr_id, bf_fileurl
+                 FROM g5_board_file
+                 WHERE bo_table = 'user_profile'
+             ),
+             ReplyData AS (
+                 SELECT
+                     pwr.wk_id,
+                     JSON_ARRAYAGG(
+                             JSON_OBJECT(
+                                     'wkReplyId', pwr.wk_reply_id,
+                                     'mbId', pwr.mb_id,
+                                     'contents', pwr.contents,
+                                     'subReplyList', COALESCE(sub.sub_reply_list, JSON_ARRAY()),
+                                     'createYmd', DATE_FORMAT(pwr.create_ymd, '%Y-%m-%d %H:%i:%s'),
+                                     'createId', pwr.create_id,
+                                     'mbNick', gm.mb_nick,
+                                     'userProfileUrl', upf.bf_fileurl
+                             )
+                     ) AS reply_list
+                 FROM pet_walk_reply pwr
+                          JOIN g5_member gm ON pwr.mb_id = gm.mb_id
+                          LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+                          LEFT JOIN (
+                     SELECT
+                         pwsr.wk_reply_id,
+                         JSON_ARRAYAGG(
+                                 JSON_OBJECT(
+                                         'wkSuplyId', pwsr.wk_suply_id,
+                                         'mbId', pwsr.mb_id,
+                                         'contents', pwsr.contents,
+                                         'createYmd', DATE_FORMAT(pwsr.create_ymd, '%Y-%m-%d %H:%i:%s'),
+                                         'createId', pwsr.create_id,
+                                         'mbNick', gm.mb_nick,
+                                         'userProfileUrl', upf.bf_fileurl
+                                 )
+                         ) AS sub_reply_list
+                     FROM pet_walk_sub_reply pwsr
+                              JOIN g5_member gm ON pwsr.mb_id = gm.mb_id
+                              LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+                     WHERE pwsr.del_fl = 0
+                     GROUP BY pwsr.wk_reply_id
+                 ) sub ON pwr.wk_reply_id = sub.wk_reply_id
+                 WHERE pwr.del_fl = 0
+                 GROUP BY pwr.wk_id
+             ),
+             imageData AS (
+                 SELECT
+                     pwfm.wk_id,
+                     JSON_ARRAYAGG(
+                             JSON_OBJECT(
+                                     'wkFmapId', pwfm.wk_fmap_id,
+                                     'imageUrl', bf.bf_fileurl,
+                                     'fileName', bf.bf_source
+                             )
+                     ) AS image_list
+                 FROM pet_walk_file_mapping pwfm
+                          LEFT JOIN g5_board_file bf ON pwfm.wk_fmap_id = bf.wr_id AND bf.bo_table = 'pet_walk'
+                 GROUP BY pwfm.wk_id
+             ),
+             likeUserData AS (
+                 SELECT
+                     pwlm.wk_id,
+                     JSON_ARRAYAGG(
+                             JSON_OBJECT('mbId', pwlm.mb_id)
+                     ) AS like_user_list
+                 FROM pet_walk_like_mapping pwlm
+                 WHERE pwlm.del_fl = 0
+                 GROUP BY pwlm.wk_id
+             )
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY pw.create_ymd DESC) AS row_num,
+            pw.wk_id,
+            pw.mb_id,
+            pw.contents,
+            EXISTS (
+                SELECT 1 FROM pet_walk_like_mapping
+                WHERE wk_id = pw.wk_id AND mb_id = #{mbId} AND del_fl = 0
+            ) AS is_liked,
+            lud.like_user_list,
+            pw.create_ymd,
+            pw.create_id,
+            rd.reply_list,
+            id.image_list,
+            gm.mb_nick,
+            upf.bf_fileurl AS user_profile_url,
+            DATE_FORMAT(pw.create_ymd, '%Y-%m-%d') AS walk_date,
+            s_day.create_ymd AS start_date,
+            e_day.create_ymd AS end_date,
+            pw.wk_distance AS distance_km,
+            pw.water_ml,
+            pw.dung,
+            (SELECT JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                    'petId', pi.pet_id,
+                                    'petNm', pi.pet_nm,
+                                    'isDefault', pi.is_default,
+                                    'petFileUrl', bf.bf_fileurl
+                            )
+                    )
+             FROM pet_info pi
+                      INNER JOIN g5_board_file bf ON pi.pet_id = bf.wr_id AND bf.bo_table = 'pet_info'
+             WHERE FIND_IN_SET(pi.pet_id, pw.pet_ids)) AS pet_list,
+            pw.wk_time, pw.wk_distance,
+            (SELECT COUNT(wklm_id)
+             FROM pet_walk_like_mapping
+             WHERE wk_id = pw.wk_id AND del_fl = 0) AS like_cnt,
+            pw.boast_fl
+        FROM pet_walk pw
+        JOIN g5_member gm ON pw.mb_id = gm.mb_id
+        LEFT JOIN user_profile_file upf ON gm.mb_no = upf.wr_id
+        LEFT JOIN s_day ON pw.wk_id = s_day.wk_id
+        LEFT JOIN e_day ON pw.wk_id = e_day.wk_id
+        LEFT JOIN ReplyData rd ON pw.wk_id = rd.wk_id
+        LEFT JOIN imageData id ON pw.wk_id = id.wk_id
+        LEFT JOIN likeUserData lud ON pw.wk_id = lud.wk_id
+        WHERE pw.del_fl = 0 AND pw.wk_id = #{wkId};
+    </select>
+    <insert id="creWalkLikeMapping" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.CrePetWalkLikeMappingReq">
+        INSERT INTO pet_walk_like_mapping
+        (
+            wk_id,
+            mb_id,
+            create_ymd,
+            create_id
+        )
+        VALUES (
+            #{wkId},
+            #{mbId},
+            CURRENT_TIMESTAMP,
+            #{mbId}
+        );
+    </insert>
+
+    <delete id="delWalkLikeMapping" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.CrePetWalkLikeMappingReq">
+        DELETE FROM pet_walk_like_mapping
+        WHERE wk_id = #{wkId} AND mb_id = #{mbId};
+    </delete>
+
+    <insert id="crePetWalkReply" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.CrePetWalkReplyReq">
+        INSERT INTO pet_walk_reply
+        (
+            wk_id,
+            mb_id,
+            contents,
+            create_ymd,
+            create_id
+        )
+        VALUES (
+            #{wkId},
+            #{mbId},
+            #{contents},
+            CURRENT_TIMESTAMP,
+            #{createId}
+        )
+    </insert>
+    <update id="updPetWalkReply" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.UpdPetWalkReplyReq">
+        UPDATE pet_walk_reply
+        SET contents = #{contents},
+            update_ymd = CURRENT_TIMESTAMP,
+            update_id = #{updateId}
+        WHERE wk_reply_id = #{wkReplyId} AND del_fl = 0
+    </update>
+
+    <delete id="delPetWalkReply" parameterType="map">
+        DELETE FROM pet_walk_reply
+        WHERE wk_reply_id = #{wkReplyId} AND del_fl = 0
+    </delete>
+
+    <delete id="delAllPetWalkReply" parameterType="map">
+        DELETE FROM pet_walk_reply
+        WHERE wk_id = #{wkId} AND del_fl = 0
+    </delete>
+
+    <delete id="delAllPetWalkSubReply" parameterType="map">
+        DELETE FROM pet_walk_sub_reply
+        WHERE wk_id = #{wkId} AND del_fl = 0
+    </delete>
+
+    <delete id="delPetWalk" parameterType="map">
+        DELETE FROM pet_walk
+        WHERE wk_id = #{wkId} AND del_fl = 0
+    </delete>
+
+    <delete id="delWalkBoardFile" parameterType="map">
+        DELETE FROM pet_walk_file_mapping
+        WHERE wk_id = #{wkId} AND del_fl = 0
+    </delete>
+
+    <select id="findWalkFileMapping" parameterType="map" resultType="java.lang.Integer">
+        SELECT wk_fmap_id
+        FROM pet_walk_file_mapping
+        WHERE wk_id = #{wkId} AND del_fl = 0
+    </select>
+
+    <insert id="crePetWalkSubReply" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.CrePetWalkSbReplyReq">
+        INSERT INTO pet_walk_sub_reply
+        (wk_reply_id,
+         wk_id,
+         mb_id,
+         contents,
+         create_ymd,
+         create_id)
+        VALUES (
+                   #{wkReplyId},
+                   #{wkId},
+                   #{mbId},
+                   #{contents},
+                   CURRENT_TIMESTAMP,
+                   #{createId})
+    </insert>
+
+    <update id="updPetWalkSubReply" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.UpdPetWalkSbReplyReq">
+        UPDATE pet_walk_sub_reply
+        SET contents = #{contents},
+            update_ymd = CURRENT_TIMESTAMP,
+            update_id = #{updateId}
+        WHERE wk_suply_id = #{wkSuplyId} AND del_fl = 0
+    </update>
+
+    <delete id="delPetWalkSubReply" parameterType="map">
+        DELETE FROM pet_walk_sub_reply
+        WHERE wk_suply_id = #{wkSuplyId} AND del_fl = 0
+    </delete>
+
+    <select id="findWalkReplyWrite" parameterType="java.lang.Integer">
+        SELECT
+            mb_id
+        FROM pet_walk_reply WHERE wk_reply_id = #{wkReplyId};
+    </select>
+    <update id="updatePetWalkBoast" parameterType="map">
+        UPDATE pet_walk SET boast_fl = #{boastFl}, boast_date = (CASE WHEN #{boastFl} = 1 THEN CURRENT_TIMESTAMP END) WHERE mb_id = #{mbId} AND wk_id = #{wkId};
+    </update>
+    <select id="findWalkDateList" parameterType="map">
+        SELECT
+            DISTINCT DATE_FORMAT(start_date, '%Y-%m-%d')
+        FROM pet_walk WHERE MONTH(start_date) = #{startMonth} AND mb_id = #{mbId};
+    </select>
+    <select id="findWalkWriter" parameterType="map" resultType="java.lang.String">
+        SELECT mb_id FROM pet_walk WHERE wk_id = #{wkId};
+    </select>
+    <select id="petWalkReplyList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_walk.PetWalkReplyListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetWalkReplySub">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pwr.wk_id,
+            pwr.wk_reply_id,
+            pwr.mb_id,
+            pwr.contents,
+            DATE_FORMAT(pwr.create_ymd, '%Y-%m-%d %H:%i:%s') AS create_ymd,
+            pwr.create_id,
+            gm.mb_nick,
+            pcb.mb_nick as your_nick,
+            subReplyData.sub_reply_list,
+            gbf.bf_fileurl AS user_profile_url
+        FROM pet_walk_reply pwr
+        INNER JOIN g5_member gm
+        ON pwr.mb_id = gm.mb_id
+        LEFT JOIN g5_board_file gbf ON gbf.bo_table = 'user_profile' AND gm.mb_no = gbf.wr_id
+        LEFT JOIN (
+            SELECT
+            pwsr.wk_reply_id,
+            JSON_ARRAYAGG(
+            JSON_OBJECT(
+            'wkSuplyId', pwsr.wk_suply_id,
+            'mbId', pwsr.mb_id,
+            'contents', pwsr.contents,
+            'createYmd', DATE_FORMAT(pwsr.create_ymd, '%Y-%m-%d %H:%i:%s'),
+            'createId', pwsr.create_id,
+            'mbNick', gm.mb_nick,
+            'userProfileUrl', gbf.bf_fileurl
+            )
+        ) AS sub_reply_list
+        FROM pet_walk_sub_reply pwsr
+        INNER JOIN g5_member gm
+        ON pwsr.mb_id = gm.mb_id
+        LEFT JOIN g5_board_file gbf ON gbf.bo_table = 'user_profile' AND gm.mb_no = gbf.wr_id
+        WHERE pwsr.del_fl = 0
+        GROUP BY pwsr.wk_reply_id
+        ) subReplyData
+        ON subReplyData.wk_reply_id = pwr.wk_reply_id
+        LEFT JOIN (
+        SELECT gm.mb_nick, gm.mb_id, pw.wk_id FROM pet_walk pw INNER JOIN g5_member gm ON pw.mb_id = gm.mb_id
+        ) pcb ON pwr.wk_id = pcb.wk_id
+        WHERE pwr.del_fl = 0 AND pcb.mb_nick IS NOT NULL
+        <if test="wkId > 0">
+            AND pwr.wk_id = #{wkId}
+        </if>
+        <if test="mbId != null">
+            AND pwr.mb_id = #{mbId}
+        </if>
+        ORDER BY pwr.create_ymd
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="petWalkReplyListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <select id="findPetWalkRanking" resultType="com.petnuri.petnuriappapi.domain.model.PetWalkRanking">
+        SELECT
+            ranking_no,
+            mb_id,
+            mb_nick,
+            bf_fileurl,
+            wk_distance,
+            wk_time
+        FROM pet_walk_ranking
+        WHERE del_fl = 0
+        ORDER BY ranking_no
+        LIMIT 0, 30;
+    </select>
+    <select id="findPetWalkRankingTop" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.PetWalkRankingTop">
+        SELECT
+            gm.mb_id, gm.mb_nick, MAX(pw.start_date) AS start_date, pw.wk_distance, pw.wk_time, gbf.bf_fileurl, ranking.ranking_no
+        FROM g5_member gm
+        LEFT JOIN pet_walk pw
+        ON pw.mb_id = gm.mb_id
+        LEFT JOIN g5_board_file gbf
+        ON gbf.bo_table = 'user_profile' AND gm.mb_no = gbf.wr_id
+        LEFT JOIN (
+            SELECT mb_id, RANK() OVER (ORDER BY wk_time DESC) AS ranking_no FROM pet_walk GROUP BY mb_id
+        ) ranking ON pw.mb_id = ranking.mb_id
+        WHERE gm.mb_id = #{mbId}
+        GROUP BY mb_id
+    </select>
+    <select id="findWalkPointList" parameterType="com.petnuri.petnuriappapi.domain.request.shop_my_page.ShopMpPointListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopMyPagePoint">
+        SELECT
+        SQL_CALC_FOUND_ROWS
+        ROW_NUMBER() OVER (ORDER BY gsc.po_datetime DESC) AS row_num,
+        gsc.po_id,gsc.po_datetime,gsc.po_content,
+        CASE WHEN gsc.po_point <![CDATA[>]]> 0 THEN gsc.po_point ELSE 0 END AS save_point,
+        CASE WHEN gsc.po_point <![CDATA[<]]> 0 THEN ABS(gsc.po_point) ELSE 0 END AS use_point,
+        gsc.po_expired,gsc.po_expire_date, CASE WHEN gsc.po_rel_table = '@delivery' THEN SUBSTRING_INDEX(gsc.po_rel_action, ',', 1) ELSE NULL END AS od_id,
+        pph.type,pph.admin_fl
+        FROM g5_point gsc
+        LEFT JOIN pet_point_history pph ON pph.g5_point_id = gsc.po_id
+        WHERE gsc.mb_id = #{mbId}
+        AND gsc.po_rel_table = '@walk_point'
+        <if test="startDate != null and endDate != null">
+            AND DATE_FORMAT(gsc.po_datetime, '%Y-%m-%d') BETWEEN #{startDate} AND #{endDate}
+        </if>
+        LIMIT #{pageNo}, #{pageSize}
+    </select>
+    <select id="findWalkPointCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <select id="findWalkTotalPoint" parameterType="map">
+        SELECT
+            IFNULL(SUM(CASE WHEN po_point > 0 THEN po_point ELSE 0 END), 0) AS total_point
+        FROM g5_point
+        WHERE mb_id = #{mbId} AND po_rel_table = '@walk_point';
+    </select>
+</mapper>

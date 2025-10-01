@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PetAlarmRepository">
+    <insert id="createAlarm" parameterType="com.petnuri.petnuriappapi.domain.request.pet_alarm.PetAlarmReq">
+        INSERT INTO pet_alarm (
+            menu_type,
+            menu_type_id,
+            receiver_mb_id,
+            sender_mb_id,
+            send_yn,
+            send_ymd,
+            read_yn,
+            contents
+        ) VALUES (
+             #{menuType},
+             #{menuTypeId},
+             #{receiverMbId},
+             #{senderMbId},
+             #{sendYn},
+             #{sendYmd},
+             #{readYn},
+             #{contents}
+         );
+    </insert>
+    <select id="findAlarmList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_alarm.PetAlarmListReq" resultType="com.petnuri.petnuriappapi.domain.model.PetAlarm">
+        SELECT
+            SQL_CALC_FOUND_ROWS
+            pa.alarm_id,
+            pa.menu_type,
+            pa.menu_type_id,
+            pa.sender_mb_id,
+            pa.receiver_mb_id,
+            gm.mb_nick,
+            sgm.mb_nick AS sender_mb_nick,
+            pa.read_yn,
+            pa.send_ymd,
+            pa.contents,
+            pdi.device_type
+        FROM pet_alarm pa
+        LEFT JOIN g5_member gm
+        ON pa.receiver_mb_id = gm.mb_id
+        LEFT JOIN pet_device_info pdi
+        ON pa.receiver_mb_id = pdi.mb_id
+        LEFT JOIN g5_member sgm
+        ON pa.sender_mb_id = sgm.mb_id
+        WHERE pa.del_fl = 0
+        AND pa.receiver_mb_id = #{mbId}
+        <if test="menuType != null">
+            AND pa.menu_type = #{menuType}
+        </if>
+        ORDER BY pa.create_ymd DESC
+        LIMIT #{pageNo}, #{pageSize};
+    </select>
+    <select id="petAlarmListCnt">
+        SELECT FOUND_ROWS() AS total_cnt;
+    </select>
+    <update id="updateAlarmRead" parameterType="com.petnuri.petnuriappapi.domain.request.pet_alarm.UpdateAlarmReq">
+        UPDATE pet_alarm
+        SET
+            read_yn = 1
+        WHERE del_fl = 0
+        <if test="alarmId != null">
+            AND alarm_id = #{alarmId}
+        </if>
+        AND receiver_mb_id = #{mbId};
+    </update>
+    <delete id="deleteAlarm" parameterType="map">
+        DELETE FROM pet_alarm WHERE del_fl = 0 AND receiver_mb_id = #{mbId}
+        <if test="alarmId != null">
+            AND alarm_id = #{alarmId}
+        </if>
+    </delete>
+    <select id="findAlarmReadCnt" parameterType="java.lang.String">
+        SELECT
+            COUNT(*)
+        FROM pet_alarm
+        WHERE del_fl = 0 AND read_yn = 0 AND receiver_mb_id = #{mbId};
+    </select>
+</mapper>

@@ -1,0 +1,964 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.PetPaymentInfoRepository">
+
+<!-- 정기 결제 수단 등록 -->
+    <insert id="insertPaymentSubInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CrePetPaymentSubInfoReq"
+       useGeneratedKeys="true"
+       keyProperty="paymentSubInfoId"
+    >
+    INSERT INTO pet_payment_sub_info (mb_id, customer_uid, payment_period_cd_id, payment_start_day, it_id, pay_location, create_id)
+    VALUES (#{mbId}, #{customerUid}, #{paymentPeriodCdId}, #{paymentStartDay}, #{itId}, #{payLocation}, #{mbId})
+    </insert>
+
+  <!-- 정기 결제 수단 히스토리 등록 -->
+  <insert id="insertPaymentSubInfoHis" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CrePetPaymentSubInfoReq"
+    >
+    INSERT INTO pet_payment_sub_info_history (payment_sub_info_id, mb_id, customer_uid, payment_period_cd_id, payment_start_day, it_id, card_name, card_number, status, message, pay_location, create_id)
+    VALUES (#{paymentSubInfoId}, #{mbId}, #{customerUid}, #{paymentPeriodCdId}, #{paymentStartDay}, #{itId}, #{cardName}, #{cardNumber}, #{status}, #{message}, #{payLocation}, #{mbId})
+  </insert>
+
+  <!-- 카드 정보 수정 히스토리 -->
+ <insert id="insertPetPaymentSubInfoHis" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.UpdPetPaymentSubInfoReq">
+    INSERT INTO pet_payment_sub_info_history (payment_sub_info_id, mb_id, customer_uid, payment_period_cd_id, payment_start_day, it_id, card_name, card_number, pay_location, status, message, create_id)
+    SELECT
+        payment_sub_info_id,
+        mb_id,
+        customer_uid,
+        #{paymentPeriodCdId},
+        #{paymentStartDay},
+        it_id,
+        #{cardName},
+        #{cardNumber},
+        'APP',
+        #{status},
+        #{message},
+        mb_id
+    FROM pet_payment_sub_info
+    WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0;
+  </insert>
+
+
+  <!--정기 구독 카드 등록 취소 -->
+  <update id="deletePaymentSubInfo" parameterType="map">
+   UPDATE pet_payment_sub_info
+   SET del_fl = 1,
+       update_ymd = CURRENT_TIMESTAMP
+   WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </update>
+
+   <!-- 카드 등록 히스토리 취소 -->
+  <update id="deletePaymentSubInfoHis" parameterType="map">
+   UPDATE pet_payment_sub_info_history
+   SET del_fl = 1,
+        update_ymd = CURRENT_TIMESTAMP
+   WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </update>
+
+   <update id="deletePaymentShipInfo" parameterType="map">
+   UPDATE pet_payment_sub_ship_info
+   SET del_fl = 1,
+        update_ymd = CURRENT_TIMESTAMP
+   WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </update>
+
+    <update id="deletePaymentCartInfo" parameterType="map">
+   UPDATE pet_payment_sub_cart_info
+   SET del_fl = 1,
+        update_ymd = CURRENT_TIMESTAMP
+   WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </update>
+
+   <!-- 배송정보 변경 -->
+  <update id="deletePaymentShipInfoHis" parameterType="map">
+   UPDATE pet_payment_sub_ship_info_history
+   SET del_fl = 1,
+        update_ymd = CURRENT_TIMESTAMP
+   WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </update>
+
+  <!-- 이미 등록된 정기결제가 있는지 여부 검증 -->
+  <select id="vailRegularPaymentSub" parameterType="map" resultType="java.lang.Integer">
+  SELECT COUNT(*) FROM pet_payment_sub_info WHERE it_id = #{itId} AND mb_id = #{mbId} AND del_fl = 0
+  </select>
+
+  <!-- 결제 정보 리스트 조회 -->
+  <select id="findPaymentSubInfoList" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.PetPaymentSubListReq" resultType="com.petnuri.petnuriappapi.domain.model.ShopPaymentSubInfoList">
+      SELECT SQL_CALC_FOUND_ROWS
+           ppi.payment_sub_info_id,
+           ppi.mb_id,
+           ppi.customer_uid,
+           ppi.payment_period_cd_id,
+           ppsc.code_type,
+           ppsc.code_value,
+           ppsc.code_nm,
+           ppi.payment_start_day,
+           ppi.payment_last_day,
+           gsi.it_id,
+           gsi.it_name,
+             COALESCE((
+            SELECT SUM(
+                     CASE
+                       WHEN ppsci.io_type = 0
+                         THEN ((ppsci.ct_price) * ppsci.ct_qty)
+                       WHEN ppsci.io_type = 1
+                         THEN (sio.io_price * ppsci.ct_qty)
+                       ELSE 0
+                     END
+                   )
+            FROM pet_payment_sub_cart_info ppsci
+            JOIN g5_shop_item_option sio
+              ON ppsci.io_id = sio.io_id
+             AND ppsci.it_id = sio.it_id
+           WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+             AND ppsci.del_fl = 0
+          ), 0)
+        + COALESCE((
+            SELECT pshi.od_send_cost + pshi.od_send_cost2
+              FROM pet_payment_sub_ship_info pshi
+             WHERE pshi.payment_sub_info_id = ppi.payment_sub_info_id
+               AND pshi.del_fl = 0
+             ORDER BY pshi.create_ymd DESC
+             LIMIT 1
+          ), 0) AS it_total_price,
+           CASE WHEN gsi.it_img1 != '' THEN CONCAT(#{imageServerUri}, gsi.it_img1) ELSE NULL END AS it_img1,
+           ppi.create_ymd,
+           -- 다음 결제 예정일 계산
+           CASE
+               -- 조건: 결제 이력이 없고, 오늘 가입 → 시작일 = 예정일
+               WHEN ppi.payment_last_day IS NULL
+               THEN ppi.payment_start_day
+
+               -- WEEKLY 정기결제
+               WHEN ppsc.code_type = 'WEEKLY' THEN
+                   DATE_ADD(
+                       COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                       INTERVAL ppsc.code_value DAY
+                   )
+
+               -- MONTHLY 정기결제
+               WHEN ppsc.code_type = 'MONTHLY' THEN
+                   CASE
+                       WHEN DAY(ppi.payment_start_day) >= 29 THEN
+                           LAST_DAY(
+                               DATE_ADD(
+                                   COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                                   INTERVAL ppsc.code_value MONTH
+                               )
+                           )
+                       ELSE
+                           DATE_ADD(
+                               COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                               INTERVAL ppsc.code_value MONTH
+                           )
+                   END
+               ELSE NULL
+           END AS next_payment_due_date,
+        COALESCE((
+                  SELECT JSON_ARRAYAGG(
+                           JSON_OBJECT(
+                             'itId',         ppsci.it_id,
+                             'ctOption',     ppsci.ct_option,
+                             'ctQty',        ppsci.ct_qty,
+                             'ioType',       ppsci.io_type,
+                             'ctPrice',
+                              CASE
+                                 WHEN ppsci.io_type = 0
+                                   THEN ((ppsci.ct_price))
+                                 WHEN ppsci.io_type = 1
+                                   THEN (sio.io_price)
+                                 ELSE 0
+                               END,
+                             'ctTotalPrice',
+                               CASE
+                                 WHEN ppsci.io_type = 0
+                                   THEN ((ppsci.ct_price) * ppsci.ct_qty)
+                                 WHEN ppsci.io_type = 1
+                                   THEN (sio.io_price * ppsci.ct_qty)
+                                 ELSE 0
+                               END
+                           )
+                         )
+                    FROM pet_payment_sub_cart_info ppsci
+                    JOIN g5_shop_item_option sio
+                      ON ppsci.io_id = sio.io_id
+                     AND ppsci.it_id = sio.it_id
+                   WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+                     AND ppsci.del_fl = 0
+                ), JSON_ARRAY()) AS cart_list,
+           COALESCE((
+      SELECT ppsci.pet_id
+        FROM pet_payment_sub_cart_info ppsci
+       WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+         AND ppsci.del_fl = 0 LIMIT 1
+    ), 0) AS pet_id
+    FROM pet_payment_sub_info ppi
+    INNER JOIN g5_shop_item gsi
+            ON gsi.it_id = ppi.it_id
+    INNER JOIN pet_payment_ship_code ppsc
+            ON ppi.payment_period_cd_id = ppsc.payment_ship_code_id
+    WHERE ppi.mb_id = #{mbId}
+      AND ppi.del_fl = 0
+    ORDER BY ppi.create_ymd DESC
+      LIMIT #{pageNo}, #{pageSize};
+  </select>
+
+  <select id="findPaymentSubInfoListCnt">
+          SELECT FOUND_ROWS() AS total_cnt;
+  </select>
+
+ <!-- 결제 정보 조회 -->
+  <select id="findPaymentUid" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopPaymentUidInfo">
+  SELECT
+    ppi.payment_sub_info_id, ppi.mb_id, ppi.customer_uid, ppi.payment_period_cd_id, ppi.payment_start_day, ppi.it_id, psii.card_name, psii.card_number, ppi.create_ymd
+  FROM pet_payment_sub_info ppi
+   INNER JOIN (
+        SELECT psi.payment_sub_info_id, psi.card_name, psi.card_number
+        FROM pet_payment_sub_info_history psi
+        WHERE psi.status = 1
+        AND psi.del_fl = 0
+        AND psi.payment_sub_info_id = #{paymentSubInfoId}
+        ORDER BY psi.create_ymd DESC
+        LIMIT 1
+    ) psii ON psii.payment_sub_info_id = ppi.payment_sub_info_id
+  WHERE ppi.payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </select>
+
+
+
+
+   <!-- 카드 정보 조회-->
+  <select id="findPaymentSubInfo" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopPaymentSubInfo">
+     SELECT
+        ppi.payment_sub_info_id,
+        ppi.mb_id,
+        ppi.payment_period_cd_id,
+        ppi.payment_start_day,
+        ppi.it_id,
+        gsi.it_name,
+        COALESCE((
+            SELECT SUM(
+                     CASE
+                       WHEN ppsci.io_type = 0
+                         THEN ((ppsci.ct_price) * ppsci.ct_qty)
+                       WHEN ppsci.io_type = 1
+                         THEN (sio.io_price * ppsci.ct_qty)
+                       ELSE 0
+                     END
+                   )
+            FROM pet_payment_sub_cart_info ppsci
+            JOIN g5_shop_item_option sio
+              ON ppsci.io_id = sio.io_id
+             AND ppsci.it_id = sio.it_id
+           WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+             AND ppsci.del_fl = 0
+          ), 0)
+        + COALESCE((
+            SELECT pshi.od_send_cost + pshi.od_send_cost2
+              FROM pet_payment_sub_ship_info pshi
+             WHERE pshi.payment_sub_info_id = ppi.payment_sub_info_id
+               AND pshi.del_fl = 0
+             ORDER BY pshi.create_ymd DESC
+             LIMIT 1
+          ), 0) AS it_total_price,
+        CASE WHEN gsi.it_img1 != '' THEN CONCAT(#{imageServerUri}, gsi.it_img1) ELSE NULL END AS it_img1,
+        psii.card_name,
+        psii.card_number,
+        ppi.create_ymd,
+         -- 다음 결제 예정일 계산
+           CASE
+               -- 조건: 결제 이력이 없고, 오늘 가입 → 시작일 = 예정일
+               WHEN ppi.payment_last_day IS NULL
+               THEN ppi.payment_start_day
+
+               -- WEEKLY 정기결제
+               WHEN ppsc.code_type = 'WEEKLY' THEN
+                   DATE_ADD(
+                       COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                       INTERVAL ppsc.code_value DAY
+                   )
+
+               -- MONTHLY 정기결제
+               WHEN ppsc.code_type = 'MONTHLY' THEN
+                   CASE
+                       WHEN DAY(ppi.payment_start_day) >= 29 THEN
+                           LAST_DAY(
+                               DATE_ADD(
+                                   COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                                   INTERVAL ppsc.code_value MONTH
+                               )
+                           )
+                       ELSE
+                           DATE_ADD(
+                               COALESCE(ppi.payment_last_day, ppi.payment_start_day),
+                               INTERVAL ppsc.code_value MONTH
+                           )
+                   END
+               ELSE NULL
+             END AS next_payment_due_date,
+              COALESCE((
+                  SELECT JSON_ARRAYAGG(
+                           JSON_OBJECT(
+                             'itId',         ppsci.it_id,
+                             'ctOption',     ppsci.ct_option,
+                             'ctQty',        ppsci.ct_qty,
+                             'ioType',       ppsci.io_type,
+                             'ctPrice',
+                              CASE
+                                 WHEN ppsci.io_type = 0
+                                   THEN ((ppsci.ct_price))
+                                 WHEN ppsci.io_type = 1
+                                   THEN (sio.io_price)
+                                 ELSE 0
+                               END,
+                             'ctTotalPrice',
+                               CASE
+                                 WHEN ppsci.io_type = 0
+                                   THEN ((ppsci.ct_price) * ppsci.ct_qty)
+                                 WHEN ppsci.io_type = 1
+                                   THEN (sio.io_price * ppsci.ct_qty)
+                                 ELSE 0
+                               END
+                           )
+                         )
+                    FROM pet_payment_sub_cart_info ppsci
+                    JOIN g5_shop_item_option sio
+                      ON ppsci.io_id = sio.io_id
+                     AND ppsci.it_id = sio.it_id
+                   WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+                     AND ppsci.del_fl = 0
+                ), JSON_ARRAY()) AS cart_list,
+     COALESCE((
+      SELECT ppsci.pet_id
+        FROM pet_payment_sub_cart_info ppsci
+       WHERE ppsci.payment_sub_info_id = ppi.payment_sub_info_id
+         AND ppsci.del_fl = 0 LIMIT 1
+    ), 0) AS pet_id
+    FROM pet_payment_sub_info ppi
+    INNER JOIN g5_shop_item gsi
+        ON gsi.it_id = ppi.it_id
+    INNER JOIN (
+        SELECT psi.payment_sub_info_id, psi.card_name, psi.card_number
+        FROM pet_payment_sub_info_history psi
+        WHERE psi.status = 1
+        AND psi.del_fl = 0
+        AND psi.payment_sub_info_id = #{paymentSubInfoId}
+        ORDER BY psi.create_ymd DESC
+        LIMIT 1
+    ) psii ON psii.payment_sub_info_id = ppi.payment_sub_info_id
+    INNER JOIN pet_payment_ship_code ppsc
+            ON ppi.payment_period_cd_id = ppsc.payment_ship_code_id
+    WHERE ppi.payment_sub_info_id = #{paymentSubInfoId}
+    AND ppi.del_fl = 0;
+  </select>
+
+   <!-- 카드 주문 정보 조회 조회-->
+   <select id="findPaymentShipInfo" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopPaymentShipInfo">
+      SELECT
+        sub_ship_info_id,
+        payment_sub_info_id,
+        mb_id,
+        it_id,
+        ad_id,
+        od_name,
+        od_email,
+        od_tel,
+        od_hp,
+        od_zip1,
+        od_zip2,
+        od_addr1,
+        od_addr2,
+        od_addr3,
+        od_addr_jibeon,
+        od_b_name,
+        od_b_tel,
+        od_b_hp,
+        od_b_zip1,
+        od_b_zip2,
+        od_b_addr1,
+        od_b_addr2,
+        od_b_addr3,
+        od_b_addr_jibeon,
+        od_memo,
+        od_cart_count,
+        od_send_cost,
+        od_send_cost2,
+        od_shop_memo
+    FROM pet_payment_sub_ship_info
+    WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+  </select>
+
+
+
+   <!-- 결제 정보 히스토리 정보 -->
+  <select id="findPaymentSubHisInfo" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.model.ShopPaymentHistorySubInfo">
+  SELECT payment_sub_info_id, mb_id, customer_uid, payment_period_cd_id, payment_start_day, it_id, card_name, card_number, create_ymd FROM pet_payment_sub_info_history WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0 ORDER BY create_ymd DESC LIMIT 1;
+  </select>
+
+<!-- 결제 주기 코드 -->
+   <select id="findPaymentSubPeriodCd"
+    resultType="com.petnuri.petnuriappapi.domain.model.CommonPeriodCode">
+    SELECT
+    payment_ship_code_id AS payment_period_cd_id,
+    code_type,
+    code_nm
+    FROM pet_payment_ship_code
+    WHERE del_fl = 0
+    AND code = 'PAYMENT_PERIOD'
+    ORDER BY
+    payment_ship_code_id
+    ASC
+  </select>
+
+<!-- 정기 배송 정보 -->
+  <insert id="insertPetSubShipInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CrePetPaymentSubInfoReq"
+   useGeneratedKeys="true"
+    keyProperty="subShipInfoId"
+  >
+    INSERT INTO pet_payment_sub_ship_info (
+        payment_sub_info_id, mb_id, it_id, ad_id, od_name, od_email, od_tel, od_hp, od_zip1, od_zip2, od_addr1, od_addr2, od_addr3, od_addr_jibeon, od_b_name, od_b_tel, od_b_hp, od_b_zip1, od_b_zip2, od_b_addr1,
+        od_b_addr2, od_b_addr3, od_b_addr_jibeon, od_memo, od_send_cost,od_send_cost2,od_shop_memo, od_cart_count, create_id
+    )
+    SELECT
+        #{paymentSubInfoId},
+        #{mbId},
+        #{itId},
+        #{adId},
+        gsoa.ad_name,
+        gm.mb_email,
+        gsoa.ad_tel,
+        gsoa.ad_hp,
+        gsoa.ad_zip1,
+        gsoa.ad_zip2,
+        gsoa.ad_addr1,
+        gsoa.ad_addr2,
+        gsoa.ad_addr3,
+        gsoa.ad_jibeon,
+        gsoa.ad_name,
+        gsoa.ad_tel,
+        gsoa.ad_hp,
+        gsoa.ad_zip1,
+        gsoa.ad_zip2,
+        gsoa.ad_addr1,
+        gsoa.ad_addr2,
+        gsoa.ad_addr3,
+        gsoa.ad_jibeon,
+        #{odMemo},
+        #{odSendCost},
+        #{odSendCost2},
+        '정기결제',
+        #{odCartCount},
+        #{mbId}
+  FROM g5_member gm
+  INNER JOIN g5_shop_order_address gsoa
+  ON gm.mb_id = gsoa.mb_id
+  WHERE gm.mb_id = #{mbId} AND gsoa.ad_id = #{adId}
+</insert>
+
+<!-- 정기 배송 정보 -->
+  <insert id="insertPetSubShipInfoHis" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CrePetPaymentSubInfoReq">
+    INSERT INTO pet_payment_sub_ship_info_history (
+        payment_sub_info_id, sub_ship_info_id, mb_id, it_id, ad_id, od_name, od_email, od_tel, od_hp, od_zip1, od_zip2, od_addr1, od_addr2, od_addr3, od_addr_jibeon, od_b_name, od_b_tel, od_b_hp, od_b_zip1, od_b_zip2, od_b_addr1,
+        od_b_addr2, od_b_addr3, od_b_addr_jibeon, od_memo, od_send_cost,od_send_cost2,od_shop_memo, od_cart_count, create_id
+    )
+    SELECT
+        payment_sub_info_id,
+        sub_ship_info_id,
+        mb_id,
+        it_id,
+        #{adId},
+        od_name,
+        od_email,
+        od_tel,
+        od_hp,
+        od_zip1,
+        od_zip2,
+        od_addr1,
+        od_addr2,
+        od_addr3,
+        od_addr_jibeon,
+        od_b_name,
+        od_b_tel,
+        od_b_hp,
+        od_b_zip1,
+        od_b_zip2,
+        od_b_addr1,
+        od_b_addr2,
+        od_b_addr3,
+        od_b_addr_jibeon,
+        #{odMemo},
+        #{odSendCost},
+        #{odSendCost2},
+        '정기결제',
+        #{odCartCount},
+        mb_id
+  FROM pet_payment_sub_ship_info
+  WHERE sub_ship_info_id = #{subShipInfoId}
+</insert>
+
+<insert id="insertPetSubCartInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.PaymentSubShopCartReq"
+useGeneratedKeys="true"
+keyProperty="subShipInfoId"
+>
+    INSERT INTO pet_payment_sub_cart_info (
+        sub_ship_info_id,
+        payment_sub_info_id,
+        mb_id,
+        it_id,
+        ct_option,
+        ct_send_cost,
+        ct_qty,
+        io_id,
+        io_type,
+        io_price,
+        ct_price,
+        it_sc_type,
+        it_sc_method,
+        it_sc_price,
+        it_sc_minimum,
+        it_sc_qty,
+        pet_id,
+        pet_history_id,
+        urine_check_history_id,
+        create_id
+    )VALUES
+    (
+     #{subShipInfoId},
+     #{paymentSubInfoId},
+     #{mbId},
+     #{itId},
+     #{ctOption},
+     #{ctSendCost},
+     #{ctQty},
+     #{ioId},
+     #{ioType},
+     #{ioPrice},
+     #{ctPrice},
+     #{itScType},
+     #{itScMethod},
+     #{itScPrice},
+     #{itScMinimum},
+     #{itScQty},
+     #{petId},
+      CASE
+        WHEN #{petId} = 0 THEN 0
+        ELSE COALESCE((
+            SELECT pih.pet_history_id
+            FROM pet_info_history pih
+            WHERE pih.pet_id = #{petId}
+            ORDER BY pih.create_ymd DESC
+            LIMIT 1
+        ), 0)
+    END,
+    CASE
+        WHEN #{urineCheckId} = 0 THEN 0
+        ELSE COALESCE((
+            SELECT uch.urine_check_history_id
+            FROM pet_urine_check_history uch
+            WHERE uch.urine_check_id = #{urineCheckId}
+            ORDER BY uch.create_ymd DESC
+            LIMIT 1
+        ), 0)
+    END,
+     #{mbId}
+    )
+</insert>
+
+<!-- 정기 배송 정보 수정 -->
+  <update id="uptPetSubShipInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.UpdPetPaymentShipInfoReq">
+   UPDATE pet_payment_sub_ship_info ppshi
+      JOIN g5_member gm ON ppshi.mb_id = gm.mb_id
+      JOIN g5_shop_order_address gsoa ON gm.mb_id = gsoa.mb_id AND gsoa.ad_id = #{adId}
+      SET
+          ppshi.ad_id = #{adId},
+          ppshi.od_name = gm.mb_name,
+          ppshi.od_email = gm.mb_email,
+          ppshi.od_tel = gsoa.ad_tel,
+          ppshi.od_hp = gsoa.ad_hp,
+          ppshi.od_zip1 = gsoa.ad_zip1,
+          ppshi.od_zip2 = gsoa.ad_zip2,
+          ppshi.od_addr1 = gsoa.ad_addr1,
+          ppshi.od_addr2 = gsoa.ad_addr2,
+          ppshi.od_addr3 = gsoa.ad_addr3,
+          ppshi.od_addr_jibeon = gsoa.ad_jibeon,
+          ppshi.od_b_name = gsoa.ad_name,
+          ppshi.od_b_tel = gsoa.ad_tel,
+          ppshi.od_b_hp = gsoa.ad_hp,
+          ppshi.od_b_zip1 = gsoa.ad_zip1,
+          ppshi.od_b_zip2 = gsoa.ad_zip2,
+          ppshi.od_b_addr1 = gsoa.ad_addr1,
+          ppshi.od_b_addr2 = gsoa.ad_addr2,
+          ppshi.od_b_addr3 = gsoa.ad_addr3,
+          ppshi.od_b_addr_jibeon = gsoa.ad_jibeon,
+          ppshi.od_memo = #{odMemo},
+          ppshi.od_send_cost = #{odSendCost},
+          ppshi.od_send_cost2 = #{odSendCost2},
+          ppshi.od_shop_memo = '정기결제',
+          ppshi.od_cart_count = #{odCartCount},
+          ppshi.update_id = #{mbId},
+          ppshi.update_ymd = CURRENT_TIMESTAMP
+      WHERE ppshi.sub_ship_info_id = #{subShipInfoId}
+</update>
+
+<!-- 정기 배송 정보 수정 -->
+  <update id="updatePetSubInfo" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.UpdPetPaymentSubInfoReq">
+   UPDATE pet_payment_sub_info
+      SET
+         payment_period_cd_id = #{paymentPeriodCdId},
+         payment_start_day = #{paymentStartDay},
+         payment_period_cd_id = #{paymentPeriodCdId},
+         update_id = #{mbId},
+         update_ymd = CURRENT_TIMESTAMP
+      WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+</update>
+
+
+<!-- 정기 배송 수정 히스토리 -->
+  <insert id="creUptShipInfoHis" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.UpdPetPaymentShipInfoReq">
+    INSERT INTO pet_payment_sub_ship_info_history (
+        payment_sub_info_id, sub_ship_info_id, mb_id, it_id, ad_id, od_name, od_email, od_tel, od_hp, od_zip1, od_zip2, od_addr1, od_addr2, od_addr3, od_addr_jibeon, od_b_name, od_b_tel, od_b_hp, od_b_zip1, od_b_zip2, od_b_addr1,
+        od_b_addr2, od_b_addr3, od_b_addr_jibeon, od_memo, od_send_cost,od_send_cost2,od_shop_memo, od_cart_count, pet_id,pet_history_id,urine_check_history_id, create_id
+    )
+    SELECT
+        payment_sub_info_id,
+        sub_ship_info_id,
+        mb_id,
+        it_id,
+        #{adId},
+        od_name,
+        od_email,
+        od_tel,
+        od_hp,
+        od_zip1,
+        od_zip2,
+        od_addr1,
+        od_addr2,
+        od_addr3,
+        od_addr_jibeon,
+        od_b_name,
+        od_b_tel,
+        od_b_hp,
+        od_b_zip1,
+        od_b_zip2,
+        od_b_addr1,
+        od_b_addr2,
+        od_b_addr3,
+        od_b_addr_jibeon,
+        #{odMemo},
+        #{odSendCost},
+        #{odSendCost2},
+        '정기결제',
+        #{odCartCount},
+        pet_id,
+        pet_history_id,
+        urine_check_history_id,
+        mb_id
+  FROM pet_payment_sub_ship_info
+  WHERE sub_ship_info_id = #{subShipInfoId}
+</insert>
+
+
+ <!-- 아이템 정보 -->
+  <select id="findItemInfo" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.pet_payment.ItemInfoRes">
+  SELECT
+  it_name, it_price, it_10
+  FROM g5_shop_item WHERE it_id = #{itId}
+  </select>
+
+  <!-- g5_shop_cart insert 첫 등록일이 오늘 날짜와 같을 때  -->
+  <insert id="createSubShopCart" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CreSubCartOrderReq" useGeneratedKeys="true"
+            keyProperty="ctId">
+                INSERT INTO g5_shop_cart (
+            od_id,
+            mb_id,
+            it_id,
+            it_name,
+            it_sc_type,
+            it_sc_method,
+            it_sc_price,
+            it_sc_minimum,
+            it_sc_qty,
+            ct_status,
+            ct_history,
+            ct_price,
+            ct_point,
+            cp_price,
+            ct_point_use,
+            ct_stock_use,
+            ct_option,
+            ct_qty,
+            ct_notax,
+            io_id,
+            io_type,
+            io_price,
+            ct_time,
+            ct_ip,
+            ct_send_cost,
+            ct_direct,
+            ct_select,
+            ct_select_time,
+            pet_id,
+            pet_history_id,
+            urine_check_history_id
+        )
+        SELECT
+            (SELECT CASE WHEN COUNT(*) > 0 THEN CONCAT(
+                    DATE_FORMAT(NOW(3), '%Y%m%d%H%i%s'),
+                    LPAD(SUBSTRING(DATE_FORMAT(NOW(3), '%f'), 1, 2), 2, '0')
+                )
+                ELSE od_id
+             END
+             FROM g5_shop_cart
+             WHERE mb_id = #{mbId} AND ct_status = '쇼핑'
+             ORDER BY ct_time DESC LIMIT 1
+            ) AS od_id,
+            #{mbId} AS mb_id,
+            pssi.it_id,
+            g5si.it_name,
+            g5si.it_sc_type,
+            g5si.it_sc_method,
+            g5si.it_sc_price,
+            g5si.it_sc_minimum,
+            g5si.it_sc_qty,
+            '입금' AS ct_status,
+            '정기결제' AS ct_history,
+            g5si.it_price AS ct_price,
+            0 AS ct_point,
+            0 AS cp_price,
+            0 AS ct_point_use,
+            0 AS ct_stock_use,
+            g5si.it_name AS ct_option,
+            pssi.od_cart_count AS ct_qty,
+            g5si.it_notax AS ct_notax,
+            '' AS io_id,
+            0 AS io_type,
+            0 AS io_price,
+            NOW() AS ct_time,
+            '' AS ct_ip,
+            g5si.it_sc_method AS ct_send_cost,
+            1 AS ct_direct,
+            1 AS ct_select,
+            NOW() AS ct_select_time,
+            pssi.pet_id,
+            pssi.pet_history_id,
+            pssi.urine_check_history_id
+        FROM pet_payment_sub_ship_info pssi
+        INNER JOIN g5_shop_item g5si ON g5si.it_id = pssi.it_id
+        WHERE pssi.payment_sub_info_id = #{paymentSubInfoId} AND pssi.del_fl = 0;
+    </insert>
+
+
+  <!-- g5_shop_order insert 첫 등록일이 오늘 날짜와 같을 때 -->
+    <insert id="createSubShopOrder" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.CreSubCartOrderReq" useGeneratedKeys="true">
+        INSERT INTO g5_shop_order (
+            od_id,
+            mb_id,
+            payment_sub_info_id,
+            od_name,
+            od_email,
+            od_tel,
+            od_hp,
+            od_zip1,
+            od_zip2,
+            od_addr1,
+            od_addr2,
+            od_addr3,
+            od_addr_jibeon,
+            od_deposit_name,
+            od_b_name,
+            od_b_tel,
+            od_b_hp,
+            od_b_zip1,
+            od_b_zip2,
+            od_b_addr1,
+            od_b_addr2,
+            od_b_addr3,
+            od_b_addr_jibeon,
+            od_memo,
+            od_cart_count,
+            od_cart_price,
+            od_cart_coupon,
+            od_send_cost,
+            od_send_cost2,
+            od_send_coupon,
+            od_receipt_price,
+            od_cancel_price,
+            od_receipt_point,
+            od_refund_price,
+            od_bank_account,
+            od_receipt_time,
+            od_coupon,
+            od_event_coupon,
+            od_misu,
+            od_shop_memo,
+            od_mod_history,
+            od_status,
+            od_hope_date,
+            od_settle_case,
+            od_other_pay_type,
+            od_test,
+            od_mobile,
+            od_pg,
+            od_tno,
+            od_app_no,
+            od_escrow,
+            od_casseqno,
+            od_tax_flag,
+            od_tax_mny,
+            od_vat_mny,
+            od_free_mny,
+            od_delivery_company,
+            od_invoice,
+            od_invoice_time,
+            od_cash,
+            od_cash_no,
+            od_cash_info,
+            od_time,
+            od_pwd,
+            od_ip,
+            subscribe_amount
+        )
+        SELECT
+            #{odId} AS od_id,
+            #{mbId} AS mb_id,
+            #{paymentSubInfoId} AS payment_sub_info_id,
+            od_name,
+            od_email,
+            od_tel,
+            od_hp,
+            od_zip1,
+            od_zip2,
+            od_addr1,
+            od_addr2,
+            od_addr3,
+            od_addr_jibeon,
+            '',
+            od_b_name,
+            od_b_tel,
+            od_b_hp,
+            od_b_zip1,
+            od_b_zip2,
+            od_b_addr1,
+            od_b_addr2,
+            od_b_addr3,
+            od_b_addr_jibeon,
+            od_memo,
+            od_cart_count,
+            #{odCartPrice} AS od_cart_price,
+            0 AS od_cart_coupon,
+            od_send_cost,
+            od_send_cost2,
+            0 AS od_send_coupon,
+            #{odReceiptPrice} AS od_receipt_price,
+            0 AS od_cancel_price,
+            0 AS od_receipt_point,
+            0 AS od_refund_price,
+            '' AS od_bank_account,
+            NOW() AS od_receipt_time,
+            0 AS od_coupon,
+            0 AS od_event_coupon,
+            0 AS od_misu,
+            '정기결제' AS od_shop_memo,
+            '' AS od_mod_history,
+            '입금' AS od_status,
+            '0000-00-00' AS od_hope_date,
+            '신용카드' AS od_settle_case,
+            '' AS od_other_pay_type,
+            #{odTest} AS od_test,
+            0 AS od_mobile,
+            'inicis' AS od_pg,
+            #{odTNo} AS od_tno,
+            #{odAppNo} AS od_app_no,
+            0 AS od_escrow,
+            '' AS od_casseqno,
+            0 AS od_tax_flag,
+            ROUND(#{odReceiptPrice} / 1.1) AS od_tax_mny,
+            #{odReceiptPrice} - ROUND(#{odReceiptPrice} / 1.1) AS od_vat_mny,
+            0 AS od_free_mny,
+            'CJ' AS od_delivery_company,
+            '' AS od_invoice,
+            '0000-00-00 00:00:00' AS od_invoice_time,
+            0 AS od_cash,
+            '' AS od_cash_no,
+            '' AS od_cash_info,
+            NOW() AS od_time,
+            '' AS od_pwd,
+            '' AS od_ip,
+            #{subscribeAmount}
+        FROM pet_payment_sub_ship_info
+        WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+    </insert>
+
+   <!-- 결제 히스토리 -->
+  <insert id="insertPaymentHistory" parameterType="com.petnuri.petnuriappapi.domain.request.pet_payment.PetPaymentHistoryReq">
+    INSERT INTO pet_payment_history (mb_id, payment_type, amount, imp_uid, it_id, od_id, status, message, pay_method, card_name, card_number, pay_location, create_id)
+    VALUES (#{mbId}, #{paymentType}, #{amount}, #{impUid}, #{itId}, #{odId}, #{status}, #{message}, #{payMethod}, #{cardName}, #{cardNumber}, #{payLocation}, #{mbId})
+  </insert>
+
+  <!-- 정기 결제 회차 할인율 코드 pet_payment_history 결제 카운트를 쿼리 후 할인율 계산 예를 들어 카운트가 1이면 2회차 이므로 기존 카운트 + 1 해서 계산-->
+   <select id="shipCountDiscountCd"
+    parameterType="map"
+    resultType="com.petnuri.petnuriappapi.domain.response.pet_payment.ShipDisCountCdRes">
+   SELECT
+    code_type,
+    code_value,
+    code_nm
+    FROM pet_payment_ship_code
+    WHERE del_fl = 0
+      AND code = 'COUNT_DISCOUNT'
+      AND code_type = (
+          SELECT COUNT(*) + 1
+          FROM pet_payment_history
+          WHERE mb_id = #{mbId}
+            AND status = 1
+            AND payment_type = 2
+            AND del_fl = 0
+      );
+  </select>
+
+   <!-- 주문 완료 후 item 재고 수량 차감 -->
+  <update id="updateItemQty" parameterType="map">
+   UPDATE g5_shop_item
+   SET it_stock_qty = it_stock_qty - #{odCartCount}
+   WHERE it_id = #{itId}
+  </update>
+
+ <!-- 카트 테이블 생성 된 ctId 로 od_id 쿼리 -->
+  <select id="findOdIdInCart"  parameterType="map" resultType="Integer">
+    SELECT od_id
+    FROM g5_shop_cart
+    WHERE ct_id = #{ctId}
+    LIMIT 1
+  </select>
+
+  <!-- 마지막 결제일 업데이트 -->
+    <update id="updatePaymentLastDay">
+    update pet_payment_sub_info
+    SET payment_last_day = CURRENT_DATE
+    WHERE payment_sub_info_id = #{paymentSubInfoId} AND del_fl = 0
+    </update>
+
+    <!-- 결제 취소 order -->
+      <select id="findOrderInfoForCancel" parameterType="map" resultType="com.petnuri.petnuriappapi.domain.response.pet_payment.PetCancelInfoRes">
+          SELECT
+              gso.od_id,
+              gso.od_status,
+              gso.od_receipt_price,
+              gso.od_pg,
+              gso.od_app_no,
+              gso.od_shop_memo,
+              gso.od_settle_case,
+              gso.od_bank_account,
+              GROUP_CONCAT(gsc.ct_id SEPARATOR ',') AS ct_id,
+              GROUP_CONCAT(gsc.it_id SEPARATOR ',') AS it_id
+          FROM g5_shop_order gso
+          LEFT JOIN g5_shop_cart gsc
+              ON gsc.od_id = gso.od_id
+              AND gsc.mb_id = gso.mb_id
+          WHERE gso.od_id = #{odId}
+          GROUP BY gso.od_id
+      </select>
+</mapper>
+
+

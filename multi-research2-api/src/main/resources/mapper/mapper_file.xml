@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "//mybatis.org/DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.petnuri.petnuriappapi.repository.FileRepository">
+  <insert id="createFile"
+    parameterType="com.petnuri.petnuriappapi.domain.request.file.CreOrUpdFileReq">
+    INSERT INTO g5_board_file(bo_table, wr_id, bf_source, bf_file, bf_fileurl, bf_download,
+                              bf_content, bf_filesize, bf_type, bf_datetime)
+    VALUES (#{boTable}, #{wrId}, #{bfSource}, #{bfFile}, #{bfFileUrl}, 0, "",
+            #{bfFilesize}, #{bfType}, CURRENT_TIMESTAMP)
+  </insert>
+
+  <select id="findOneFileInfo"
+    parameterType="map"
+    resultType="com.petnuri.petnuriappapi.domain.model.File">
+    SELECT bo_table,
+           wr_id,
+           bf_file,
+           bf_fileurl
+    FROM g5_board_file
+    WHERE wr_id = #{wrId}
+    AND bo_table = #{boTable}
+  </select>
+
+  <update id="updateFile"
+    parameterType="com.petnuri.petnuriappapi.domain.request.file.CreOrUpdFileReq">
+    UPDATE g5_board_file
+    SET bf_source   = #{bfSource},
+        bf_file     = #{bfFile},
+        bf_fileurl  = #{bfFileUrl},
+        bf_filesize = #{bfFilesize},
+        bf_type     = #{bfType},
+        bf_datetime = CURRENT_TIMESTAMP
+    WHERE bo_table = #{boTable}
+      AND wr_id = #{wrId}
+  </update>
+
+  <delete id="deleteFile">
+    DELETE
+    FROM g5_board_file
+    WHERE wr_id = #{wrId}
+    AND bo_table = #{boTable}
+  </delete>
+</mapper>
