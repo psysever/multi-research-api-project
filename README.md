@@ -16,11 +16,14 @@
 
 ## 🚀 Project Overview
 
+🇺🇸 (ENG)
+A comprehensive API project that consolidates core functionalities developed through extensive trial and error across
+numerous projects and research endeavors.
+
+<br>
 🇰🇷 (KOR)
 수많은 프로젝트를 진행하면서 겪었던 시행착오와 연구를 통해 완성된 핵심 기능들을 모아놓은 종합 API 프로젝트입니다.
-
-🇺🇸 (ENG)
-A comprehensive API project that consolidates core functionalities developed through extensive trial and error across numerous projects and research endeavors.
+<br>
 
 ### 📁 Project Structure
 
