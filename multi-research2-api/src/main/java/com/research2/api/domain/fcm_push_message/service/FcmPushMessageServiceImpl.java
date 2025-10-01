@@ -27,7 +27,6 @@ public class FcmPushMessageServiceImpl implements FcmPushMessageService {
     private final FirebaseMessaging firebaseMessaging;
 
 
-    //단일 발송
     public void sendSinglePushMessage(FcmSendMessageDto fcmSendMessageDto) throws FirebaseMessagingException {
         DeviceInfo fcmToken = fcmPushMessageRepository.findOneDevice(fcmSendMessageDto.getUserId());
         if (fcmToken == null) {
@@ -72,7 +71,7 @@ public class FcmPushMessageServiceImpl implements FcmPushMessageService {
                 .build();
     }
 
-    //단체발송
+
     public void sendMultiPushMessage(FcmSendMessageDto fcmSendMessageDto) throws FirebaseMessagingException {
 
         List<DeviceInfo> fcmTokens = fcmPushMessageRepository.findAllFcmTokens();
