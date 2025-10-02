@@ -16,7 +16,8 @@ public interface AuthService {
 
     Boolean authorization(String token);
 
-
     Token reissueTokens(ReissueTokensReqDto reissueTokensReqDto);
+
+    Boolean logout(String identifier);
 
 }

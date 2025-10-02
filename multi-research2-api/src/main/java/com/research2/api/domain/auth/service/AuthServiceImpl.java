@@ -68,7 +68,7 @@ public class AuthServiceImpl implements AuthService, UserDetailsService {
     }
 
 
-    //토큰의 유효성 검증
+    //Token Validation
     public Boolean authorization(String token) {
         if (token != null && jwtTokenProvider.validateToken(token)) {
             return true;
@@ -110,6 +110,12 @@ public class AuthServiceImpl implements AuthService, UserDetailsService {
                 .build();
         authRepositoryWithRedis.save(token);
         return tokens;
+    }
+
+    //logout
+    public Boolean logout(String identifier) {
+        authRepositoryWithRedis.deleteById(identifier);
+        return true;
     }
 
 

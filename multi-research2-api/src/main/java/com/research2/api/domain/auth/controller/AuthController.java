@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 
@@ -72,6 +73,19 @@ public class AuthController {
     public SingleResponse<Token> reissueTokens(@Valid @RequestBody ReissueTokensReqDto reissueTokensReqDto) {
         Token token = authService.reissueTokens(reissueTokensReqDto);
         return responseService.getSingleResponse(token);
+    }
+
+    @DeleteMapping("/logout")
+    @Operation(summary = "logout", description = "logout")
+    @PreAuthorize("hasRole('USER')")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "data: true", content = @Content(schema = @Schema(implementation = SingleResponse.class))),
+            @ApiResponse(responseCode = "400", description = "message: PARAMETER is incorrect", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "message: INTERNAL_SERVER_ERROR", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    })
+    public SingleResponse<Boolean> logoutUser(@Valid @RequestParam String identifier) {
+        Boolean logout = authService.logout(identifier);
+        return responseService.getSingleResponse(logout);
     }
 
 }
