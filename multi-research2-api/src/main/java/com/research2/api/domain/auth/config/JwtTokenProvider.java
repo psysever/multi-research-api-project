@@ -52,6 +52,9 @@ public class JwtTokenProvider {
     @Value("${spring.jwt.token.access-expiration-time}")
     private long accessExpirationTime;
 
+    @Value("${spring.jwt.token.refresh-expiration-time}")
+    private long refreshExpirationTime;
+
     public static final String AUTHORIZATION_HEADER = "Authorization"; //헤더 이름
 
     @Autowired
@@ -81,10 +84,12 @@ public class JwtTokenProvider {
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
         // Refresh Token 생성
+        Date refreshTokenExpiresIn = new Date(now.getTime() + refreshExpirationTime);
         String refreshToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
                 .setIssuedAt(now)
+                .setExpiration(refreshTokenExpiresIn)
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
 
