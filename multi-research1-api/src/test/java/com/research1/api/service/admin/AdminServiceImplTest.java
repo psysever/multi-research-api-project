@@ -1,15 +1,15 @@
 package com.research1.api.service.admin;
 
 
-import com.research1.api.domain.admin.service.AdminServiceImpl;
+import com.research1.api.domain.jpa.service.AdminServiceImpl;
 import com.research1.api.global.security.jwt.JwtTokenProvider;
-import com.research1.api.domain.admin.entity.Admin;
-import com.research1.api.domain.admin.enums.AdminStatusTypeEnum;
-import com.research1.api.domain.admin.enums.AdminTypeEnum;
-import com.research1.api.domain.admin.dto.req.CreateAdminDto;
-import com.research1.api.domain.admin.dto.res.AdminResponseDto;
+import com.research1.api.domain.jpa.entity.Admin;
+import com.research1.api.domain.jpa.enums.AdminStatusTypeEnum;
+import com.research1.api.domain.jpa.enums.AdminTypeEnum;
+import com.research1.api.domain.jpa.dto.req.CreateAdminDto;
+import com.research1.api.domain.jpa.dto.res.AdminResponseDto;
 import com.research1.api.global.exception.CustomException;
-import com.research1.api.domain.admin.repository.AdminRepository;
+import com.research1.api.domain.jpa.repository.AdminRepository;
 import com.research1.api.global.util.UserInfoByToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

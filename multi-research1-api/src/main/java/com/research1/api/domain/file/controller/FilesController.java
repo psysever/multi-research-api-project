@@ -1,6 +1,6 @@
 package com.research1.api.domain.file.controller;
 
-import com.research1.api.domain.admin.dto.res.AdminResponseDto;
+import com.research1.api.domain.jpa.dto.res.AdminResponseDto;
 import com.research1.api.domain.file.dto.req.FilesDeleteDto;
 import com.research1.api.domain.file.dto.req.FilesUploadDto;
 import com.research1.api.domain.file.entity.Files;

@@ -1,10 +1,10 @@
 package com.research1.api.global.util;
 
 
-import com.research1.api.domain.admin.entity.Admin;
+import com.research1.api.domain.jpa.entity.Admin;
 import com.research1.api.global.exception.error.ErrorCodes;
 import com.research1.api.global.exception.CustomException;
-import com.research1.api.domain.admin.repository.AdminRepository;
+import com.research1.api.domain.jpa.repository.AdminRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
