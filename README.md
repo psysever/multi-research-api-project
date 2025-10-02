@@ -84,6 +84,7 @@ Mastering JPA usage patterns and implementing comprehensive CRUD operations usin
 🇰🇷 (KOR)<br />
 JPA 사용법 숙지 및 JPA를 활용한 CRUD 구현
 <br />
+<br />
 
 ## 1.3 domain - oauth
 
@@ -96,6 +97,7 @@ profiles and channel information.
 <br />
 🇰🇷 (KOR)<br />
 Google, Facebook, TikTok 등의 OAuth 인증을 통한 사용자 정보 및 채널 정보 수집
+<br />
 <br />
 
 # 2.multi-research2-api
@@ -112,6 +114,7 @@ expires, a new ACCESS_TOKEN is issued using the REFRESH_TOKEN.
 🇰🇷 (KOR)<br />
 Redis를 활용한 ACCESS_TOKEN 및 REFRESH_TOKEN 발행 시스템. ACCESS_TOKEN 만료 시 REFRESH_TOKEN을 통한 새로운 ACCESS_TOKEN 발행
 <br />
+<br />
 
 ## 2.2 domain - chat
 
@@ -123,6 +126,7 @@ Implementing real-time chat functionality using WebSocket and STOMP protocol for
 <br />
 🇰🇷 (KOR)<br />
 WebSocket과 STOMP 프로토콜을 활용한 실시간 채팅 기능 구현
+<br />
 <br />
 
 ## 2.3 domain - cipher
@@ -142,7 +146,8 @@ Implementing comprehensive encryption/decryption functionality:<br />
 1. 프론트엔드는 백엔드 컨트롤러에서 제공한 공개키로 RSA 방식을 사용하여 페이로드를 암호화한 후 백엔드로 전송<br />
 2. 백엔드는 RSA 방식으로 암호화된 페이로드를 복호화한 후 AES를 통해 DB에 데이터를 암호화하여 저장<br />
 3. 프론트엔드에서 데이터 요청 시 백엔드는 AES로 암호화된 DB 데이터를 복호화한 후 프론트엔드로 전송<br />
-<br>
+<br />
+<br />
 
 ## 2.4 domain - db-master-slave
 
@@ -155,6 +160,7 @@ write and read operations using MASTER (write) and SLAVE (read) database configu
 <br />
 🇰🇷 (KOR)<br />
 DB 읽기/쓰기 분리 아키텍처 구현. DB 과부하 및 잠금 문제를 고려하여 WRITE-READ DB를 분기 처리한 후 MASTER(쓰기), SLAVE(읽기) DB로 운영
+<br />
 <br />
 
 ## 2.5 domain - excel
@@ -174,6 +180,7 @@ Implementing large dataset Excel file segmentation for efficient transmission:
 1. 프론트엔드에서 백엔드로 엑셀 다운로드 요청 시 10,000건 이상의 데이터는 성능 저하 발생<br />
 2. pageSize 변수로 행의 최대값을 설정하여 데이터를 분할 처리한 후 여러 개의 엑셀 파일로 나누어 프론트엔드에 전송<br />
 <br />
+<br />
 
 ## 2.6 domain - fcm_push_message
 
@@ -185,6 +192,7 @@ Implementing mobile app push notification system using Firebase Cloud Messaging 
 <br />
 🇰🇷 (KOR)<br />
 Firebase를 활용한 모바일 앱 푸시 메시지 시스템 구현
+<br />
 <br />
 
 ## 2.7 domain - gpt
@@ -201,6 +209,7 @@ Implementing GPT API integration functionality:<br />
 GPT API 연동 기능 구현:<br />
 1. 사용자의 건강 정보 데이터와 프롬프트를 GPT 모델에 전송하여 개인화된 건강 리포트 생성
 <br />
+<br />
 
 ## 2.8 domain - transaction
 
@@ -213,6 +222,7 @@ integrity.
 <br />
 🇰🇷 (KOR)<br />
 다양한 트랜잭션 관리 패턴 구현 및 데이터 일관성과 무결성을 위한 트랜잭션 유형 연구
+<br />
 <br />
 
 ## 🔧 Dependencies
