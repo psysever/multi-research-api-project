@@ -71,7 +71,7 @@ and private file access permissions.
 🇰🇷 (KOR)<br />
 AWS S3 업로드 및 업로드된 파일의 S3 IAM 정책을 통한 public/private 보안 분기 처리
 <br />
-
+<br />
 ## 1.2 domain - jpa
 
 ### CONTENT LINK
