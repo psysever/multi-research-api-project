@@ -63,6 +63,9 @@ multi-api-project/
 
 ### CONTENT LINK
 
+https://jackwork.work/works/48?type=RESEARCH&page=1
+<br />
+
 🇺🇸 (ENG)<br />
 Implements AWS S3 file upload functionality with security-based access control using S3 IAM policies to handle public
 and private file access permissions.
@@ -77,6 +80,8 @@ AWS S3 업로드 및 업로드된 파일의 S3 IAM 정책을 통한 public/priva
 
 ### CONTENT LINK
 
+https://jackwork.work/works/49?type=RESEARCH&page=1
+<br />
 🇺🇸 (ENG)<br />
 Mastering JPA usage patterns and implementing comprehensive CRUD operations using JPA framework.
 

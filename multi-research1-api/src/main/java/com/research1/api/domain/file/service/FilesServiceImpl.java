@@ -40,10 +40,10 @@ public class FilesServiceImpl implements FilesService {
     private String bucketNamePrivate;
 
 
-    @Value("${spring.cloud.aws.cloudfront.public-url:}")
+    @Value("${spring.cloud.aws.cloudfront.public-url}")
     private String publicCloudFrontUrl;
 
-    @Value("${spring.cloud.aws.cloudfront.private-url:}")
+    @Value("${spring.cloud.aws.cloudfront.private-url}")
     private String privateCloudFrontUrl;
 
     private final FilesRepository filesRepository;
@@ -102,7 +102,7 @@ public class FilesServiceImpl implements FilesService {
 
 
             if (isPublic) {
-                metadata.setCacheControl("max-age=31536000"); // 1년 캐시
+                metadata.setCacheControl("max-age=31536000");
             }
 
             PutObjectRequest putObjectRequest = new PutObjectRequest(

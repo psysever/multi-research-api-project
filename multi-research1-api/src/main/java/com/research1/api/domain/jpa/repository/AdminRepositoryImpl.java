@@ -1,7 +1,7 @@
 package com.research1.api.domain.jpa.repository;
 
 import com.research1.api.domain.jpa.entity.Admin;
-import com.inflinker.api.domain.admin.entity.QAdmin;
+import com.research1.api.domain.jpa.entity.QAdmin;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +51,9 @@ public class AdminRepositoryImpl implements AdminRepositoryCustom {
             );
         }
 
-        return queryFactory.selectFrom(admin)
+        return queryFactory.select(admin.count())
+                .from(admin)
                 .where(builder)
-                .fetchCount();
+                .fetchOne();
     }
 }

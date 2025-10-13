@@ -1,12 +1,125 @@
 application:
   version: v0.0.1
-  title: INFLINKER JPA V1
+  title: RESEARCH1
 
 server:
   port: 8500
 
 spring:
-  profiles:
-    active: local
+  datasource:
+    url: jdbc:h2:mem:devdb
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+
+
+  config:
+    activate:
+      on-profile: local  # 개발: local, dev 스테이지: stg 라이브: prod로 변경해서 사용
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-google-client-id
+            client-secret: dummy-google-client-secret
+            scope: # 기본 값 openid,profile,email => profile, email 로 설정 변경
+              - profile
+              - email
+            redirect-uri: http://localhost:8500/login/oauth2/code/google
+          facebook:
+            client-id: dummy-facebook-client-id
+            client-secret: dummy-facebook-client-secret
+            redirect-uri: http://localhost:8500/login/oauth2/code/facebook
+            scope: email,public_profile
+            authorization-grant-type: authorization_code
+          twitch:
+            client-id: dummy-twitch-client-id
+            client-secret: dummy-twitch-client-secret
+            redirect-uri: http://localhost:8500/login/oauth2/code/twitch
+            scope: user:read:email
+            authorization-grant-type: authorization_code
+            provider: twitch
+          tiktok:
+            client-id: dummy-tiktok-client-id
+            client-secret: dummy-tiktok-client-secret
+            redirect-uri: http://localhost:8500/login/oauth2/code/tiktok
+            scope: user.info.stats
+            authorization-grant-type: authorization_code
+            provider: tiktok
+        provider:
+          twitch:
+            authorization-uri: https://id.twitch.tv/oauth2/authorize
+            token-uri: https://id.twitch.tv/oauth2/token
+            user-info-uri: https://api.twitch.tv/helix/users
+            user-name-attribute: id
+          tiktok:
+            authorization-uri: https://www.tiktok.com/v2/auth/authorize
+            token-uri: https://open.tiktokapis.com/v2/oauth/token/
+            user-info-uri: https://open.tiktokapis.com/v2/user/info
+            user-name-attribute: id
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: dummy@gmail.com
+    password: dummy-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  cloud:
+    aws:
+      access-key: dummy-access-key
+      secret-key: dummy-secret-key
+      region: us-east-1
+      end-point: http://localhost:9000
+      bucket-name-public: dummy-public-bucket
+      bucket-name-private: dummy-private-bucket
+      cloudfront:
+        public-url: ""
+        private-url: ""
+  jwt:
+    header: Authorization
+    secret: dummy-jwt-secret-key-for-development-minimum-256-bits-long
+    token-validity-in-seconds: 3600
+    token:
+      access-expiration-time: 3600000
+      refresh-expiration-time: 86400000
+
+
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    groups-order: DESC
+    operations-sorter: method
+    tags-sorter: alpha
+    path: /docs/swagger-ui.html
+    disable-swagger-default-url: true
+  show-login-endpoint: true
+
+logging:
+  level:
+    com.research1.api: debug
+    org.hibernate.SQL: debug
+    org.hibernate.type: debug
+    com:
+      amazonaws:
+        util:
+          EC2MetadataUtils: error
+
+
+
+
+
+
+
 
 
