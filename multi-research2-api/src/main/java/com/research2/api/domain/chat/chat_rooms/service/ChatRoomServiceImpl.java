@@ -7,7 +7,7 @@ import com.research2.api.domain.chat.chat_messages.repository.ChatMessageReposit
 import com.research2.api.domain.chat.chat_room_members.model.ChatRoomMember;
 import com.research2.api.domain.chat.chat_room_members.repository.ChatRoomMemberRepository;
 import com.research2.api.domain.chat.chat_room_members.service.ChatRoomMemberService;
-import com.petnuri.api.domain.chat.chat_rooms.dto.*;
+import com.research2.api.domain.chat.chat_rooms.dto.*;
 import com.research2.api.domain.chat.chat_rooms.dto.*;
 import com.research2.api.domain.chat.chat_rooms.model.ChatRoom;
 import com.research2.api.domain.chat.chat_rooms.repository.ChatRoomRepository;

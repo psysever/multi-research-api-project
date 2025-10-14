@@ -132,12 +132,15 @@ Redis를 활용한 ACCESS_TOKEN 및 REFRESH_TOKEN 발행 시스템. ACCESS_TOKEN
 
 ### CONTENT LINK
 
+https://jackwork.work/works/52?type=RESEARCH&page=1
+<br />
+
 🇺🇸 (ENG)<br />
-Implementing real-time chat functionality using WebSocket and STOMP protocol for seamless messaging experience.
+Implementing real-time chat functionality using MongoDB,WebSocket and STOMP protocol for seamless messaging experience.
 
 <br />
 🇰🇷 (KOR)<br />
-WebSocket과 STOMP 프로토콜을 활용한 실시간 채팅 기능 구현
+MongoDB,WebSocket과 STOMP 프로토콜을 활용한 실시간 채팅 기능 구현
 <br />
 <br />
 
