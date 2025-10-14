@@ -95,6 +95,9 @@ JPA 사용법 숙지 및 JPA를 활용한 CRUD 구현
 
 ### CONTENT LINK
 
+https://jackwork.work/works/50?type=RESEARCH&page=1
+<br />
+
 🇺🇸 (ENG)<br />
 Implementing OAuth authentication integration with major platforms (Google, Facebook, TikTok, etc.) to retrieve user
 profiles and channel information.
