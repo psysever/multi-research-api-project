@@ -100,7 +100,7 @@ public class AuthServiceImpl implements AuthService, UserDetailsService {
     private Token createTokenWithRedis(Authentication authentication) {
         String tokenUserId = (String) authentication.getPrincipal();
         Token tokens = jwtTokenProvider.generateToken(authentication);
-        Claims claims = jwtTokenProvider.parseClaims(tokens.getRefreshToken()); //exp 값을 가져오는 부분
+        Claims claims = jwtTokenProvider.parseClaims(tokens.getRefreshToken()); //exp value
         if (claims != null && !claims.isEmpty()) {
             authRepositoryWithRedis.deleteById(tokenUserId);
         }

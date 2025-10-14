@@ -115,6 +115,9 @@ Google, Facebook, TikTok 등의 OAuth 인증을 통한 사용자 정보 및 채�
 
 ### CONTENT LINK
 
+https://jackwork.work/works/51?type=RESEARCH&page=1
+<br />
+
 🇺🇸 (ENG)<br />
 Implementing token-based authentication using Redis for ACCESS_TOKEN and REFRESH_TOKEN management. When ACCESS_TOKEN
 expires, a new ACCESS_TOKEN is issued using the REFRESH_TOKEN.
