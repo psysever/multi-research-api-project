@@ -82,6 +82,7 @@ AWS S3 업로드 및 업로드된 파일의 S3 IAM 정책을 통한 public/priva
 
 https://jackwork.work/works/49?type=RESEARCH&page=1
 <br />
+
 🇺🇸 (ENG)<br />
 Mastering JPA usage patterns and implementing comprehensive CRUD operations using JPA framework.
 
