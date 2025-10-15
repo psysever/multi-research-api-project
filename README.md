@@ -148,6 +148,9 @@ MongoDB,WebSocket과 STOMP 프로토콜을 활용한 실시간 채팅 기능 구
 
 ### CONTENT LINK
 
+https://jackwork.work/works/53?type=RESEARCH&page=1
+<br />
+
 🇺🇸 (ENG)<br />
 Implementing comprehensive encryption/decryption functionality:<br />
 
