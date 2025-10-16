@@ -17,3 +17,5 @@ public class RoutingDataSource extends AbstractRoutingDataSource {
         return isReadOnly ? "slave" : "master";
     }
 }
+
+

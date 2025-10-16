@@ -171,6 +171,9 @@ Implementing comprehensive encryption/decryption functionality:<br />
 
 ### CONTENT LINK
 
+https://jackwork.work/works/54?type=RESEARCH&page=1<br />
+<br />
+
 🇺🇸 (ENG)<br />
 Implementing database read/write separation architecture. Considering database overload and locking issues, separating
 write and read operations using MASTER (write) and SLAVE (read) database configuration.
@@ -184,6 +187,9 @@ DB 읽기/쓰기 분리 아키텍처 구현. DB 과부하 및 잠금 문제를 �
 ## 2.5 domain - excel
 
 ### CONTENT LINK
+
+https://jackwork.work/works/55?type=RESEARCH&page=1<br />
+<br />
 
 🇺🇸 (ENG)<br />
 Implementing large dataset Excel file segmentation for efficient transmission:
@@ -203,6 +209,9 @@ Implementing large dataset Excel file segmentation for efficient transmission:
 ## 2.6 domain - fcm_push_message
 
 ### CONTENT LINK
+
+https://jackwork.work/works/56?type=RESEARCH&page=1<br />
+<br />
 
 🇺🇸 (ENG)<br />
 Implementing mobile app push notification system using Firebase Cloud Messaging (FCM) for real-time user engagement.

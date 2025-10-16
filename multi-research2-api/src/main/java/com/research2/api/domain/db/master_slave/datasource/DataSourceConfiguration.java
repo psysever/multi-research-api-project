@@ -16,7 +16,7 @@ import java.util.HashMap;
 
 @Configuration
 @EnableTransactionManagement
-@EnableJpaRepositories(basePackages = {"com.petnuri"})
+@EnableJpaRepositories(basePackages = {"com.research2"})
 public class DataSourceConfiguration {
 
     @Bean

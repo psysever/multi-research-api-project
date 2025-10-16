@@ -39,7 +39,6 @@ public class FcmPushMessageServiceImpl implements FcmPushMessageService {
     }
 
     public Message makeMessage(String targetToken, String title, String body, String image) {
-
         Map<String, String> androidData = new HashMap<>();
         androidData.put("title", title);
         androidData.put("body", body);

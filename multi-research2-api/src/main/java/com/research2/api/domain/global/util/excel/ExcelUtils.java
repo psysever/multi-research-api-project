@@ -22,14 +22,15 @@ import java.util.stream.Collectors;
 @Component
 public class ExcelUtils implements ExcelSupport {
 
-    //한 시트당 그려줄 데이터의 총 갯수를 의미하는 MAX_ROW가 있습니다.
-    //컨트롤러에서 연결 단계에서 사용할 SXSSFWorkbook의 변수와 HttpServletResponse 변수가 있습니다.
+    // MAX_ROW indicates the maximum number of rows to be drawn per sheet.
+// There are variables for SXSSFWorkbook and HttpServletResponse
+// that will be used in the connection step in the controller.
     private static final int MAX_ROW = 5000;
     private SXSSFWorkbook workbook;
     private HttpServletResponse response;
 
 
-    //해당 메서드는 유틸 클래스의 변수를 초기화해주는 역할을 수행합니다.
+    // Initialize streaming workbook
     @Override
     public void connect(HttpServletResponse response) {
         workbook = new SXSSFWorkbook(-1);
@@ -37,8 +38,7 @@ public class ExcelUtils implements ExcelSupport {
     }
 
 
-    //해당 메서드는 컨트롤러에서 엑셀을 그려주기 위해 호출되는 메서드입니다.
-    //내부 메서드인 getWorkBook 메서드에게 수행할 내용을 위임하고, 받아온 list를 clear하게 됩니다.
+    // Draw Excel sheet with data chunk
     @Override
     public void draw(int sheetNum, Class<?> clazz, List<?> data) {
         try {
@@ -51,8 +51,7 @@ public class ExcelUtils implements ExcelSupport {
     }
 
 
-    //해당 메서드는 컨트롤러에서 최종적으로 엑셀을 다운로드하기 위해 호출되는 메서드입니다.
-    //추가적으로 사용한 자원을 반납하게 됩니다.
+    // Stream to client and cleanup
     @Override
     public void download(String fileName) {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -71,11 +70,11 @@ public class ExcelUtils implements ExcelSupport {
         }
     }
 
-    //해당 메서드는 시트의 헤더와 바디를 그려주는 메서드를 호출하고 주기적으로 flush를 진행하고 있습니다. 1편과 크게 차이점은 없지만 sheetName 변수를 만드는 과정이 살짝 다릅니다.
+    // Create sheet and flush periodically
     private SXSSFWorkbook getWorkBook(int sheetNum, Class<?> clazz, List<String> headerNames,
                                       List<?> data) throws IllegalAccessException, IOException {
         // 각 시트 당 MAX_ROW 개씩
-        String sheetName = "주문 목록" + (sheetNum + 1);
+        String sheetName = "Order List" + (sheetNum + 1);
 
         SXSSFSheet sheet =
                 ObjectUtils.isEmpty(this.workbook.getSheet(sheetName)) ? this.workbook.createSheet(
@@ -85,17 +84,18 @@ public class ExcelUtils implements ExcelSupport {
 
         row = sheet.createRow(0);
         createHeaders(row, headerNames);
-        // 데이터가 있을 때만 바디를 생성
+        // exist data
         if (!data.isEmpty()) {
             createBody(clazz, data, sheet);
         }
 
-        // 주기적인 flush 진행
+        // After writing rows to sheet
         sheet.flushRows(MAX_ROW);
         return this.workbook;
     }
 
-    //해당 메서드의 역할은 각 시트당 헤더를 그려주기 위한 메서드입니다.
+
+    //The role of this method is to draw a header for each sheet.
     private void createHeaders(Row row, List<String> headerNames) {
         /**
          * header font style
@@ -108,16 +108,16 @@ public class ExcelUtils implements ExcelSupport {
          * header cell style
          */
         CellStyle headerCellStyle = this.workbook.createCellStyle();
-        headerCellStyle.setAlignment(HorizontalAlignment.CENTER);       // 가로 가운데 정렬
-        headerCellStyle.setVerticalAlignment(VerticalAlignment.CENTER); // 세로 가운데 정렬
+        headerCellStyle.setAlignment(HorizontalAlignment.CENTER);       // horizontally centered
+        headerCellStyle.setVerticalAlignment(VerticalAlignment.CENTER); // vertically center aligned
 
-        // 테두리 설정
+        // set border
         headerCellStyle.setBorderLeft(BorderStyle.THIN);
         headerCellStyle.setBorderRight(BorderStyle.THIN);
         headerCellStyle.setBorderTop(BorderStyle.THIN);
         headerCellStyle.setBorderBottom(BorderStyle.THIN);
 
-        // 배경 설정
+        // foreground color
         headerCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
         headerCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         headerCellStyle.setFont(font);
@@ -133,13 +133,13 @@ public class ExcelUtils implements ExcelSupport {
         }
     }
 
-    //createBody 메서드는 엑셀의 내용을 그려주는 메서드입니다.
-    //해당 메서드는 데이터를 그려주며 주기적으로 flush하는 과정을 살펴볼 수 있습니다.
+    // The createBody method draws the contents of an Excel file.
+// This method writes the data and performs periodic flushing.
     private void createBody(Class<?> clazz, List<?> data, Sheet sheet)
             throws IllegalAccessException {
         CellStyle bodyCellStyle = this.workbook.createCellStyle();
-        bodyCellStyle.setAlignment(HorizontalAlignment.CENTER);       // 가로 가운데 정렬
-        bodyCellStyle.setVerticalAlignment(VerticalAlignment.CENTER); // 세로 가운데 정렬
+        bodyCellStyle.setAlignment(HorizontalAlignment.CENTER);       // horizontally centered
+        bodyCellStyle.setVerticalAlignment(VerticalAlignment.CENTER); // vertically center aligned
         int startRow = 0;
         Row row;
         for (Object o : data) {
@@ -156,8 +156,9 @@ public class ExcelUtils implements ExcelSupport {
     }
 
     /**
-     * 엑셀의 헤더 명칭을 찾는 로직
+     * Logic for finding Excel header names
      */
+
     private List<String> findHeaderNames(Class<?> clazz) {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(ExcelColumnName.class))
@@ -166,7 +167,7 @@ public class ExcelUtils implements ExcelSupport {
     }
 
     /**
-     * 데이터의 값을 추출하는 메서드
+     * Method for extracting data values
      */
     private List<Object> findFieldValue(Class<?> clazz, Object obj) throws IllegalAccessException {
         List<Object> result = new ArrayList<>();
