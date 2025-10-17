@@ -226,6 +226,9 @@ Firebase를 활용한 모바일 앱 푸시 메시지 시스템 구현
 
 ### CONTENT LINK
 
+https://jackwork.work/works/57?type=RESEARCH&page=1<br />
+<br />
+
 🇺🇸 (ENG)
 Implementing GPT API integration functionality:<br />
 
