@@ -245,6 +245,9 @@ GPT API 연동 기능 구현:<br />
 
 ### CONTENT LINK
 
+https://jackwork.work/works/58?type=RESEARCH&page=1<br />
+<br />
+
 🇺🇸 (ENG)<br />
 Implementing various transaction management patterns and exploring different transaction types for data consistency and
 integrity.
