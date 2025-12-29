@@ -32,8 +32,18 @@ public class FcmPushMessageServiceImpl implements FcmPushMessageService {
         if (fcmToken == null) {
             throw new CustomException(ErrorCodes.UserErrorCode.CAN_NOT_FIND_DEVICE_INFO);
         } else {
-            firebaseMessaging.send(makeMessage("fcmToken.getDeviceToken()", fcmSendMessageDto.getTitle(),
-                    fcmSendMessageDto.getBody(), fcmSendMessageDto.getImage()));
+            try {
+                firebaseMessaging.send(makeMessage("fcmToken.getDeviceToken()", fcmSendMessageDto.getTitle(),
+                        fcmSendMessageDto.getBody(), fcmSendMessageDto.getImage()));
+            } catch (FirebaseMessagingException e) {
+                log.error("FCM FAILED - deviceToken: {},deviceType: {}, error: {}",
+                        fcmToken.getDeviceToken(),
+                        fcmToken.getDeviceType(),
+                        e.getMessage(),
+                        e);
+                throw new CustomException(ErrorCodes.CommonErrorCode.PUSH_MESSAGE_ERROR);
+            }
+
 
         }
     }
@@ -72,50 +82,54 @@ public class FcmPushMessageServiceImpl implements FcmPushMessageService {
 
 
     public void sendMultiPushMessage(FcmSendMessageDto fcmSendMessageDto) throws FirebaseMessagingException {
-
+        int BATCH_SIZE = 500; // FCM MAX 500
         List<DeviceInfo> fcmTokens = fcmPushMessageRepository.findAllFcmTokens();
         List<String> targetTokens = fcmTokens.stream()
                 .map(DeviceInfo::getDeviceToken)
                 .collect(Collectors.toList());
 
-        FirebaseMessaging.getInstance().sendEachForMulticast(
-                makeMessages(fcmSendMessageDto.getTitle(), fcmSendMessageDto.getBody(), fcmSendMessageDto.getImage(),
-                        targetTokens)
-        );
+        for (int i = 0; i < targetTokens.size(); i += BATCH_SIZE) {
 
+            MulticastMessage msg = buildMulticastMessage(fcmSendMessageDto, targetTokens);
+            try {
+                BatchResponse res = firebaseMessaging.sendEachForMulticast(msg);
+                for (int idx = 0; idx < targetTokens.size(); idx++) {
+                    SendResponse r = res.getResponses().get(idx);
+                    boolean success = r.isSuccessful();
+                    if (success) {
+                        log.info("FCM SUCCESS - targetTokens: {}, success: {}",
+                                targetTokens,
+                                true
+                        );
+
+                    }
+
+
+                }
+            } catch (FirebaseMessagingException e) {
+                log.error("FCM FAILED - targetTokens: {}, error: {}",
+                        targetTokens,
+                        e.getMessage(),
+                        e);
+            }
+        }
     }
 
-    public MulticastMessage makeMessages(String title, String body, String image,
-                                         List<String> targetTokens) {
-
-        Map<String, String> androidData = new HashMap<>();
-        androidData.put("title", title);
-        androidData.put("body", body);
-        androidData.put("image", image);
-
-        // Create the AndroidConfig object to set priority
-        AndroidConfig androidConfig = AndroidConfig.builder()
-                .setPriority(AndroidConfig.Priority.HIGH) // Set high priority for Android
-                .putAllData(androidData)
-                .build();
-
-        Map<String, Object> apnData = new HashMap<>();
-        apnData.put("title", title);
-        apnData.put("body", body);
-        apnData.put("image", image);
-
-        ApnsConfig apnsConfig = ApnsConfig.builder()
-                .setAps(Aps.builder()
-                        .setContentAvailable(true)
+    private MulticastMessage buildMulticastMessage(FcmSendMessageDto req, List<String> tokens) {
+        return MulticastMessage.builder()
+                .addAllTokens(tokens)
+                .setAndroidConfig(AndroidConfig.builder()
+                        .setPriority(AndroidConfig.Priority.HIGH)
+                        .putData("title", req.getTitle())
+                        .putData("body", req.getBody())
+                        .putData("data", req.getData() != null ? req.getData() : "")
                         .build())
-                .putAllCustomData(apnData)
-                .build();
-
-        return MulticastMessage
-                .builder()
-                .setAndroidConfig(androidConfig)
-                .setApnsConfig(apnsConfig)
-                .addAllTokens(targetTokens)
+                .setApnsConfig(ApnsConfig.builder()
+                        .setAps(Aps.builder().setContentAvailable(true).build())
+                        .putCustomData("title", req.getTitle())
+                        .putCustomData("body", req.getBody())
+                        .putCustomData("data", req.getData())
+                        .build())
                 .build();
     }
 

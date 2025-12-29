@@ -25,4 +25,7 @@ public class FcmSendMessageDto {
 
     @Schema(description = "image", example = "1")
     private String image;
+
+    @Schema(description = "data", example = "1")
+    private String data;
 }

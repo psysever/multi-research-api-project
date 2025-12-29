@@ -70,36 +70,9 @@ public class ErrorCodes {
         CART_DELETE_FAILED(1027, HttpStatus.NOT_FOUND, "CART_DELETE_FAILED"),
         NEED_CART_LIST(1028, HttpStatus.NOT_FOUND, "NEED_CART_LIST"),
         CART_CREATE_FAILED(1029, HttpStatus.NOT_FOUND, "CART_CREATE_FAILED"),
-        ;
-
-        private final int code;
-        private final HttpStatus httpStatus;
-        private final String message;
-    }
-
-    @Getter
-    @RequiredArgsConstructor
-    public enum AdminErrorCode implements ErrorCode {
-        ADMIN_CAN_NOT_FIND(1021, HttpStatus.NOT_FOUND, "ADMIN_CAN_NOT_FIND"),
-        ADMIN_CAN_NOT_ACCESS(1022, HttpStatus.NOT_FOUND, "ADMIN_CAN_NOT_ACCESS"),
-        DUPLICATED_ADMIN_USER(1023, HttpStatus.NOT_FOUND, "DUPLICATED_ADMIN_USER"),
-        PASSWORD_DOES_NOT_MATCHED(1024, HttpStatus.NOT_FOUND, "PASSWORD_DOES_NOT_MATCHED"),
-        INVOICE_IS_ALREADY_EXIST(1025, HttpStatus.NOT_FOUND, "INVOICE_IS_ALREADY_EXIST"),
-        CAN_NOT_FIND_INVOICE(1026, HttpStatus.NOT_FOUND, "CAN_NOT_FIND_INVOICE"),
-        INVALID_EXCEL_DATA(1027, HttpStatus.NOT_FOUND, "INVALID_EXCEL_DATA"),
-        DOES_NOT_MATCH_COUNT(1028, HttpStatus.NOT_FOUND, "DOES_NOT_MATCH_COUNT"),
-        MATERIAL_NAME_DUPLICATED(1029, HttpStatus.NOT_FOUND, "MATERIAL_NAME_DUPLICATED"),
-        ;
-
-        private final int code;
-        private final HttpStatus httpStatus;
-        private final String message;
-    }
-
-    @Getter
-    @RequiredArgsConstructor
-    public enum ComBoardErrorCode implements ErrorCode {
-        ONLY_IN_FIVE_PIC(2001, HttpStatus.NOT_FOUND, "ONLY_IN_FIVE_PIC");
+        ORDER_CREATE_FAILED(1030, HttpStatus.NOT_FOUND, "ORDER_CREATE_FAILED"),
+        NEED_ITEM_ID(1031, HttpStatus.NOT_FOUND, "NEED_ITEM_ID"),
+        INVALID_ORDER(1032, HttpStatus.NOT_FOUND, "NEED_ITEM_ID");
 
         private final int code;
         private final HttpStatus httpStatus;
