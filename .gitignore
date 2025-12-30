@@ -46,4 +46,4 @@ petnuri-api/src/main/resources/application.yaml
 petnuri-api/src/main/resources/application-local.yaml
 
 !/build/
-!/build/
+
