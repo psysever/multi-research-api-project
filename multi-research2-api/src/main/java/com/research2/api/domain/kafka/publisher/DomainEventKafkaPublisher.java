@@ -1,7 +1,7 @@
 package com.research2.api.domain.kafka.publisher;
 
 
-import com.research2.api.domain.kafka.dto.req.ShopOrderCreatedEventDto;
+import com.research2.api.domain.kafka.dto.event.ShopOrderCreatedEventDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

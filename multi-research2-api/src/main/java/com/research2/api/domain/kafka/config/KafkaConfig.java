@@ -1,7 +1,7 @@
 package com.research2.api.domain.kafka.config;
 
 
-import com.research2.api.domain.kafka.dto.req.ShopOrderCreatedEventDto;
+import com.research2.api.domain.kafka.dto.event.ShopOrderCreatedEventDto;
 import com.research2.api.domain.kafka.utill.NonRetryableException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -66,7 +66,7 @@ public class KafkaConfig {
         // 오프셋이 없을 때 earliest부터 읽기
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         // 역직렬화를 허용할 패키지 범위
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.petnuri.petnuriappapi.domain.event");
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.research2.api.domain.kafka.dto.event");
         // 기본 역직렬화 타입 지정
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ShopOrderCreatedEventDto.class.getName());
         // 타입 정보 헤더를 사용하지 않음

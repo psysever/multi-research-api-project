@@ -1,9 +1,8 @@
 package com.research2.api.domain.kafka.consumer;
 
 
-import com.research2.api.domain.kafka.dto.req.OrderListDto;
 import com.research2.api.domain.kafka.dto.req.ProcessedEventDto;
-import com.research2.api.domain.kafka.dto.req.ShopOrderCreatedEventDto;
+import com.research2.api.domain.kafka.dto.event.ShopOrderCreatedEventDto;
 import com.research2.api.domain.kafka.entity.ShopOrder;
 import com.research2.api.domain.kafka.repository.ProcessedEventRepository;
 import com.research2.api.domain.kafka.repository.ShopRepository;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
+
 
 @Slf4j
 @Component

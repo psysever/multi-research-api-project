@@ -258,6 +258,24 @@ integrity.
 <br />
 <br />
 
+## 2.9 domain - kafka
+
+### CONTENT LINK
+
+https://jackwork.work/works/59?type=RESEARCH&page=1<br />
+<br />
+
+🇺🇸 (ENG)<br />
+Building Reliable Order Processing with Kafka:
+Transactional Boundaries and Idempotent Consumers
+
+<br />
+🇰🇷 (KOR)<br />
+Kafka를 활용한 신뢰성 있는 주문 처리 시스템 구축:
+트랜잭션 경계와 멱등 컨슈머 설계
+<br />
+<br />
+
 ## 🔧 Dependencies
 
 ### Core Dependencies

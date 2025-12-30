@@ -3,6 +3,7 @@ package com.research2.api.domain.kafka.service;
 
 import com.research2.api.domain.global.exception.CustomException;
 import com.research2.api.domain.global.exception.error.ErrorCodes;
+import com.research2.api.domain.kafka.dto.event.ShopOrderCreatedEventDto;
 import com.research2.api.domain.kafka.dto.req.*;
 import com.research2.api.domain.kafka.repository.ShopRepository;
 import com.research2.api.domain.kafka.utill.OrderIdService;

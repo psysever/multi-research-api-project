@@ -1,4 +1,4 @@
-package com.research2.api.domain.kafka.dto.req;
+package com.research2.api.domain.kafka.dto.event;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
