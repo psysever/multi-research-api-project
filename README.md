@@ -50,6 +50,7 @@ multi-api-project/
 │       │── excel                # Excel
 │       │── fcm_push_message     # Fcm push message
 │       │── gpt                  # Create response content with gpt
+│       │── kafka                # kafka
 │       └── transaction          # Transaction type
 │
 │           
@@ -241,24 +242,7 @@ GPT API 연동 기능 구현:<br />
 <br />
 <br />
 
-## 2.8 domain - transaction
-
-### CONTENT LINK
-
-https://jackwork.work/works/58?type=RESEARCH&page=1<br />
-<br />
-
-🇺🇸 (ENG)<br />
-Implementing various transaction management patterns and exploring different transaction types for data consistency and
-integrity.
-
-<br />
-🇰🇷 (KOR)<br />
-다양한 트랜잭션 관리 패턴 구현 및 데이터 일관성과 무결성을 위한 트랜잭션 유형 연구
-<br />
-<br />
-
-## 2.9 domain - kafka
+## 2.8 domain - kafka
 
 ### CONTENT LINK
 
@@ -273,6 +257,23 @@ Transactional Boundaries and Idempotent Consumers
 🇰🇷 (KOR)<br />
 Kafka를 활용한 신뢰성 있는 주문 처리 시스템 구축:
 트랜잭션 경계와 멱등 컨슈머 설계
+<br />
+<br />
+
+## 2.9 domain - transaction
+
+### CONTENT LINK
+
+https://jackwork.work/works/58?type=RESEARCH&page=1<br />
+<br />
+
+🇺🇸 (ENG)<br />
+Implementing various transaction management patterns and exploring different transaction types for data consistency and
+integrity.
+
+<br />
+🇰🇷 (KOR)<br />
+다양한 트랜잭션 관리 패턴 구현 및 데이터 일관성과 무결성을 위한 트랜잭션 유형 연구
 <br />
 <br />
 
