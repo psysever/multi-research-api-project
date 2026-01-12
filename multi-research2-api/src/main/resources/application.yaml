@@ -16,14 +16,14 @@ spring:
     active: local
   kafka:
     bootstrap-servers: localhost:9092
-    # Kafka 프로듀서/컨슈머 기본 직렬화 설정
+    # Kafka Producer/Consumer Default Serialization Settings
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      group-id: petnuri-app-api
+      group-id: project-api
       auto-offset-reset: earliest
       properties:
         spring.json.trusted.packages: com.petnuri.petnuriappapi.domain.event
@@ -35,7 +35,7 @@ spring:
 app:
   kafka:
     topics:
-      # 주문 생성 이벤트 토픽
+      # Create Order Event Topic
       order-created-v1: order-created.v1
 
   producer:
@@ -43,7 +43,7 @@ app:
     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
   consumer:
-    group-id: project-group
+    group-id: research2-group
     auto-offset-reset: earliest
     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
