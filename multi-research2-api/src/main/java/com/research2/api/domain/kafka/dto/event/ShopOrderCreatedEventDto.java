@@ -12,7 +12,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-// 주문 생성 이벤트 페이로드
+// Payload Order Generation Event
 public class ShopOrderCreatedEventDto {
     @Schema(description = "eventId", example = "1")
     private String eventId;

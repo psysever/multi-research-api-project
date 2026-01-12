@@ -15,7 +15,7 @@ public class OrderIdService {
 
     public String getOrCreateOrderId(String mbId, int ctDirect) {
 
-        // 1️⃣ 기존 주문번호 조회
+        // 1️1.Check existing order number
         String existOdId =
                 shopRepository.findLatestOrderId(mbId, ctDirect);
 
@@ -23,7 +23,7 @@ public class OrderIdService {
             return existOdId;
         }
 
-        // 2️⃣ 없으면 새로 생성
+        // 2. If not, create a new one
         return generateOrderId();
     }
 

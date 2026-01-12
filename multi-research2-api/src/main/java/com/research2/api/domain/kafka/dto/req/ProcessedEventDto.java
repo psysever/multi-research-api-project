@@ -12,7 +12,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-// 중복 처리 방지를 위한 소비 완료 이벤트 기록
+// Record consumption completion events to avoid duplication
 public class ProcessedEventDto {
 
     @Schema(description = "eventId", example = "1")

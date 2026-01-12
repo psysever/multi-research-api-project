@@ -13,37 +13,37 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
-@Schema(title = "주문 내역 리스트 Req", description = "주문 내역 리스트 Req")
+@Schema(title = "Order History List Req", description = "Order History List Req")
 public class OrderListDto extends PaginationReqDto {
 
-    @Schema(description = "검색 유형 PRODUCT:상품명 CODE:상품코드", example = "1")
+    @Schema(description = "search type PRODUCT:product name CODE:product code", example = "1")
     private String searchType;
 
-    @Schema(description = "검색어", example = "1")
+    @Schema(description = "searchKeyword", example = "1")
     private String searchKeyword;
 
-    @Schema(description = "시작일자", example = "1")
+    @Schema(description = "startDate", example = "1")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
     private LocalDate startDate;
 
-    @Schema(description = "종료일자", example = "1")
+    @Schema(description = "endDate", example = "1")
     private LocalDate endDate;
 
-    @Schema(description = "카트상태", example = "취소")
+    @Schema(description = "ctStatus", example = "취소")
     private String ctStatus;
 
-    @Schema(description = "회원 아이디", example = "1")
+    @Schema(description = "mbId", example = "1")
     @JsonIgnore
     private String mbId;
 
-    @Schema(description = "이미지 서버 URL", example = "test")
+    @Schema(description = "imageServerUri", example = "test")
     @JsonIgnore
     private String imageServerUri;
 
-    @Schema(description = "검색 유형", example = "1")
+    @Schema(description = "odId", example = "1")
     @JsonIgnore
     private String odId;
 
-    @Schema(description = "메뉴 유형", example = "1")
+    @Schema(description = "menuType", example = "1")
     private String menuType;
 }

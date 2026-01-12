@@ -23,12 +23,12 @@ import java.time.Instant;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-// 주문 이벤트 소비 및 멱등 처리
+// Order Event Consumption and Power Handling
 public class ShopEventConsumer {
 
-    // 처리된 이벤트 저장소 (멱등 처리용)
+    // Processed Event Storage (for flashlight processing)
     private final ProcessedEventRepository processedEventRepository;
-    // 주문 조회를 위한 저장소
+    // Storage for Order Inquiry
     private final ShopRepository shopRepository;
 
     @KafkaListener(
@@ -52,7 +52,7 @@ public class ShopEventConsumer {
             throw new NonRetryableException("Order not found. orderId=" + resolvedOrderId);
         }
 
-        // 멱등 insert (PK)
+        // Power lamp insert (PK)
         try {
             processedEventRepository.kafkaInsert(
                     ProcessedEventDto.builder()
@@ -67,7 +67,7 @@ public class ShopEventConsumer {
             return;
         }
 
-        // 포인트 차감 (이력 기반)
+        // Deduct points (based on history)
         if (event.getOdReceiptPoint() > 0) {
             shopRepository.updateMemberUsePoint(
                     event.getUserId(),

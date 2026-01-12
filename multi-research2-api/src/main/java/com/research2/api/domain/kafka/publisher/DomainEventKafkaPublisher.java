@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-// 트랜잭션 커밋 이후 도메인 이벤트를 Kafka로 발행
+// Publish domain events to Kafka after transaction commitment
 public class DomainEventKafkaPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -31,11 +31,11 @@ public class DomainEventKafkaPublisher {
 
         future.whenComplete((result, ex) -> {
             if (ex != null) {
-                log.error("도메인 이벤트 Kafka 발행 실패 eventId={}", event.getEventId(), ex);
+                log.error("Domain Event Kafka Publisher failed eventId={}", event.getEventId(), ex);
                 return;
             }
             log.info(
-                    "도메인 이벤트 Kafka 발행 완료 eventId={} topic={} offset={}",
+                    "Domain Event Kafka Is Issued eventId={} topic={} offset={}",
                     event.getEventId(),
                     topic,
                     result.getRecordMetadata().offset()

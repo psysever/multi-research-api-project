@@ -25,7 +25,7 @@ import java.util.Map;
 
 @EnableKafka
 @Configuration
-// Kafka 프로듀서/컨슈머 및 에러 핸들링 공통 설정
+// Kafka Producer/Consumer and Error Handling Common Settings
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
@@ -35,22 +35,22 @@ public class KafkaConfig {
     private String consumerGroupId;
 
     @Bean
-    // JsonSerializer 기반 프로듀서 설정
+    // Json Serializer-based Producer Settings
     public ProducerFactory<String, Object> kafkaProducerFactory() {
         Map<String, Object> props = new HashMap<>();
-        // Kafka 브로커 주소 목록
+        // Kafka Broker Address List
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        // 메시지 키를 문자열로 직렬화
+        // Serialize message keys into strings
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        // 메시지 값을 JSON으로 직렬화
+        // Serialize message values to JSON
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        // 타입 정보 헤더를 추가하지 않음
+        // Do not add type information headers
         props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
         return new DefaultKafkaProducerFactory<>(props);
     }
 
     @Bean
-    // 공용 KafkaTemplate
+    // common use KafkaTemplate
     public KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> kafkaProducerFactory) {
         return new KafkaTemplate<>(kafkaProducerFactory);
     }
@@ -59,19 +59,19 @@ public class KafkaConfig {
     // ShopOrderCreatedEvent 소비를 위한 JsonDeserializer 설정
     public ConsumerFactory<String, ShopOrderCreatedEventDto> shopOrderCreatedConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
-        // Kafka 브로커 주소 목록
+        // Kafka broke address list
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        // 컨슈머 그룹 ID
+        // Consumer group ID
         props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
-        // 오프셋이 없을 때 earliest부터 읽기
+        // Read from earlist when offset is not present
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        // 역직렬화를 허용할 패키지 범위
+        // Package range to allow deserialization
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.research2.api.domain.kafka.dto.event");
-        // 기본 역직렬화 타입 지정
+        // Specify the default deserialization type
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ShopOrderCreatedEventDto.class.getName());
-        // 타입 정보 헤더를 사용하지 않음
+        // Disable Type Information Header
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        // 오토 커밋 비활성화 (수동 ack 사용)
+        // Disable auto commit (using manual ack)
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         return new DefaultKafkaConsumerFactory<>(
                 props,
@@ -81,7 +81,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    // 수동 Ack + 공통 에러 핸들러 적용
+    // Apply Manual Ack + Common Error Handler
     public ConcurrentKafkaListenerContainerFactory<String, ShopOrderCreatedEventDto> shopEventKafkaListenerContainerFactory(
             ConsumerFactory<String, ShopOrderCreatedEventDto> shopOrderCreatedConsumerFactory,
             DefaultErrorHandler kafkaErrorHandler
@@ -95,7 +95,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    // 고정 백오프 + DLQ 라우팅 에러 핸들러
+    // Fixed backoff + DLQ routing error handler
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
         FixedBackOff backOff = new FixedBackOff(3000L, 3L);
 

@@ -1,7 +1,7 @@
 package com.research2.api.domain.kafka.utill;
 
 
-// 재시도 제외 대상 예외
+// Exception to exclude retries
 public class NonRetryableException extends RuntimeException {
     public NonRetryableException(String message) {
         super(message);
