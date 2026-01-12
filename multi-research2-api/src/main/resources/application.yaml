@@ -1,13 +1,13 @@
 application:
   version: v0.0.1
-  title: PETNURI
+  title: RESEARCH2
 
 server:
   port: 8080
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.petnuri.petnuriuserapi
+  type-aliases-package: com.research2.api
   configuration:
     map-underscore-to-camel-case: true
 
@@ -43,7 +43,7 @@ app:
     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
   consumer:
-    group-id: petnuri-group
+    group-id: project-group
     auto-offset-reset: earliest
     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer

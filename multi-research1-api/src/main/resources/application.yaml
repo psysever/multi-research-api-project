@@ -17,7 +17,7 @@ spring:
 
   config:
     activate:
-      on-profile: local  # 개발: local, dev 스테이지: stg 라이브: prod로 변경해서 사용
+      on-profile: local
 
   security:
     oauth2:
@@ -26,7 +26,7 @@ spring:
           google:
             client-id: dummy-google-client-id
             client-secret: dummy-google-client-secret
-            scope: # 기본 값 openid,profile,email => profile, email 로 설정 변경
+            scope:
               - profile
               - email
             redirect-uri: http://localhost:8500/login/oauth2/code/google
