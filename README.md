@@ -6,13 +6,6 @@
 
 <br>
 
-## 📊 Research's GitHub Stats
-
-![GitHub stats](https://github-readme-stats.vercel.app/api?username=psysever&show_icons=true&theme=dracula)
-
-> **Note**: GitHub stats are updated periodically (not in real-time) due to API caching. Statistics may take several
-> hours to reflect recent activity.
-
 ## 🚀 Project Overview
 
 🇺🇸 (ENG)<br />
